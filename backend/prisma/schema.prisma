@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id         String      @id @default(uuid())
+  name       String
+  city       String
+  rut        String      @unique
+  phone      String
+  contact    String?     // campo legacy — reemplazado por Contact
+  notes      String?
+  active     Boolean     @default(true)
+  incidents  Incident[]
+  equipment  Equipment[]
+  contacts   Contact[]
+  backupJobs BackupJob[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Technician {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(TECHNICIAN)
+  active       Boolean    @default(true)
+  incidents    Incident[]
+  comments     Comment[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Equipment {
+  id        String     @id @default(uuid())
+  name      String
+  ip        String?
+  brand     String?
+  model     String?
+  location  String?
+  os        String?
+  active    Boolean    @default(true)
+  client    Client     @relation(fields: [clientId], references: [id])
+  clientId  String
+  incidents Incident[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  phone     String?
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Incident {
+  id           String         @id @default(uuid())
+  title        String
+  description  String
+  status       IncidentStatus @default(OPEN)
+  priority     Priority       @default(MEDIUM)
+  client       Client         @relation(fields: [clientId], references: [id])
+  clientId     String
+  assignedTo   Technician?    @relation(fields: [technicianId], references: [id])
+  technicianId String?
+  equipment    Equipment?     @relation(fields: [equipmentId], references: [id])
+  equipmentId  String?
+  solution     Solution?
+  comments     Comment[]
+  tags         Tag[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Comment {
+  id           String     @id @default(uuid())
+  content      String
+  incident     Incident   @relation(fields: [incidentId], references: [id])
+  incidentId   String
+  author       Technician @relation(fields: [technicianId], references: [id])
+  technicianId String
+  createdAt    DateTime   @default(now())
+}
+
+model Solution {
+  id               String   @id @default(uuid())
+  description      String
+  timeSpentMinutes Int
+  incident         Incident @relation(fields: [incidentId], references: [id])
+  incidentId       String   @unique
+  createdAt        DateTime @default(now())
+}
+
+model Tag {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  incidents Incident[]
+}
+
+model BackupJob {
+  id         String       @id @default(uuid())
+  client     Client?      @relation(fields: [clientId], references: [id])
+  clientId   String?      // null si no hay match con ningún cliente
+  taskName   String
+  result     BackupResult
+  occurredAt DateTime
+  rawSubject String
+  messageUid String?      @unique // UID IMAP — evita importar el mismo email dos veces
+  createdAt  DateTime     @default(now())
+}
+
+enum Role {
+  TECHNICIAN
+  ADMIN
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BackupResult {
+  SUCCESS
+  WARNING
+  FAILURE
+}
