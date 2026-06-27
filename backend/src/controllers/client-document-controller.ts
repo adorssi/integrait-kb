@@ -16,9 +16,14 @@ export const ClientDocumentController = {
     try {
       if (!req.file) throw new AppError(400, 'Archivo requerido');
 
+      const displayName = typeof req.body?.displayName === 'string' && req.body.displayName.trim()
+        ? req.body.displayName.trim().slice(0, 255)
+        : null;
+
       const relativePath = path.join('clients', req.file.filename);
       const doc = await ClientDocumentRepository.create({
         clientId: req.params.clientId,
+        displayName,
         filename: req.file.originalname,
         mimeType: req.file.mimetype,
         size: req.file.size,
@@ -37,7 +42,8 @@ export const ClientDocumentController = {
       }
 
       const fullPath = getFilePath(doc.storagePath);
-      res.download(fullPath, doc.filename, (err) => {
+      const downloadName = doc.displayName ?? doc.filename;
+      res.download(fullPath, downloadName, (err) => {
         if (err) next(new AppError(500, 'Error al descargar el archivo'));
       });
     } catch (err) { next(err); }

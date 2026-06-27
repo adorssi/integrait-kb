@@ -229,6 +229,7 @@ export interface ClientWifi {
 export interface ClientDocument {
   id: string;
   clientId: string;
+  displayName?: string | null;
   filename: string;
   mimeType: string;
   size: number;

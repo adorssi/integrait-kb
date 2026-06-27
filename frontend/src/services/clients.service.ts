@@ -152,9 +152,10 @@ export const clientsService = {
     return data.data;
   },
 
-  async uploadDocument(clientId: string, file: File): Promise<ClientDocument> {
+  async uploadDocument(clientId: string, file: File, displayName?: string): Promise<ClientDocument> {
     const form = new FormData();
     form.append('file', file);
+    if (displayName) form.append('displayName', displayName);
     const { data } = await api.post<ApiResponse<ClientDocument>>(`/clients/${clientId}/documents`, form);
     return data.data;
   },

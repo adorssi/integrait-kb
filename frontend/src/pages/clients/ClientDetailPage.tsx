@@ -223,6 +223,8 @@ export function ClientDetailPage() {
   const [docSearch, setDocSearch] = useState('');
   const [deleteDoc, setDeleteDoc] = useState<ClientDocument | null>(null);
   const docUploadRef = useRef<HTMLInputElement>(null);
+  const [pendingDocFile, setPendingDocFile] = useState<File | null>(null);
+  const [pendingDocName, setPendingDocName] = useState('');
 
   // Internet services state
   const [editInternetSvc, setEditInternetSvc] = useState<ClientInternetService | null>(null);
@@ -342,8 +344,9 @@ export function ClientDetailPage() {
   });
 
   const uploadDocMutation = useMutation({
-    mutationFn: (file: File) => clientsService.uploadDocument(id!, file),
-    onSuccess: () => invalidateDocs(),
+    mutationFn: ({ file, displayName }: { file: File; displayName: string }) =>
+      clientsService.uploadDocument(id!, file, displayName.trim() || undefined),
+    onSuccess: () => { invalidateDocs(); setPendingDocFile(null); setPendingDocName(''); },
   });
   const deleteDocMutation = useMutation({
     mutationFn: (docId: string) => clientsService.deleteDocument(id!, docId),
@@ -371,7 +374,12 @@ export function ClientDetailPage() {
 
   const handleDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) uploadDocMutation.mutate(file);
+    if (file) {
+      // Pre-fill con el nombre del archivo sin extensión
+      const nameWithoutExt = file.name.replace(/\.[^.]+$/, '');
+      setPendingDocName(nameWithoutExt);
+      setPendingDocFile(file);
+    }
     e.target.value = '';
   };
 
@@ -610,7 +618,7 @@ export function ClientDetailPage() {
                             ) : null}
                             {svc.isp && <div><span className="text-xs text-muted-foreground block">ISP</span>{svc.isp}</div>}
                             {svc.serviceNumber && <div><span className="text-xs text-muted-foreground block">Nro. de servicio</span>{svc.serviceNumber}</div>}
-                            {svc.phone && <div><span className="text-xs text-muted-foreground block">Teléfono</span>{svc.phone}</div>}
+                            {svc.phone && <div><span className="text-xs text-muted-foreground block">Teléfono Asociado</span>{svc.phone}</div>}
                             {svc.titular && <div><span className="text-xs text-muted-foreground block">Titular</span>{svc.titular}</div>}
                           </div>
                         </div>
@@ -972,21 +980,24 @@ export function ClientDetailPage() {
             </div>
           </div>
 
-          {documents.filter(d => !docSearch || d.filename.toLowerCase().includes(docSearch.toLowerCase())).length === 0 ? (
+          {documents.filter(d => !docSearch || (d.displayName ?? d.filename).toLowerCase().includes(docSearch.toLowerCase())).length === 0 ? (
             <EmptyState icon={FileText} title="Sin documentos" description="Subí planos, cotizaciones, PDFs de licencias y otros archivos del cliente" />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {documents.filter(d => !docSearch || d.filename.toLowerCase().includes(docSearch.toLowerCase())).map(doc => (
+              {documents.filter(d => !docSearch || (d.displayName ?? d.filename).toLowerCase().includes(docSearch.toLowerCase())).map(doc => (
                 <Card key={doc.id}>
                   <CardContent className="pt-4 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <p className="text-sm font-medium truncate">{doc.filename}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{doc.displayName ?? doc.filename}</p>
+                          {doc.displayName && <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>}
+                        </div>
                       </div>
                       <div className="flex gap-1 shrink-0">
                         <Button variant="ghost" size="icon" className="h-7 w-7" title="Descargar"
-                          onClick={() => { void downloadAuthFile(clientsService.getDocumentDownloadUrl(id!, doc.id), doc.filename); }}>
+                          onClick={() => { void downloadAuthFile(clientsService.getDocumentDownloadUrl(id!, doc.id), doc.displayName ?? doc.filename); }}>
                           <Download className="h-3 w-3" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteDoc(doc)}>
@@ -1164,10 +1175,33 @@ export function ClientDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Dialog nombre de documento ── */}
+      <Dialog open={!!pendingDocFile} onOpenChange={open => { if (!open) { setPendingDocFile(null); setPendingDocName(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Nombre del documento</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Podés cambiar el nombre con el que se guardará el archivo.</p>
+            <div className="space-y-1">
+              <Label>Nombre</Label>
+              <Input value={pendingDocName} onChange={e => setPendingDocName(e.target.value)}
+                placeholder="ej. Plano de red 2024"
+                onKeyDown={e => { if (e.key === 'Enter' && pendingDocFile) uploadDocMutation.mutate({ file: pendingDocFile, displayName: pendingDocName }); }} />
+              <p className="text-xs text-muted-foreground">Archivo: {pendingDocFile?.name}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPendingDocFile(null); setPendingDocName(''); }}>Cancelar</Button>
+            <Button disabled={uploadDocMutation.isPending} onClick={() => pendingDocFile && uploadDocMutation.mutate({ file: pendingDocFile, displayName: pendingDocName })}>
+              {uploadDocMutation.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Subiendo...</> : 'Subir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Dialog confirmar eliminar documento ── */}
       <ConfirmDialog open={!!deleteDoc} onClose={() => setDeleteDoc(null)}
         onConfirm={() => deleteDoc && deleteDocMutation.mutate(deleteDoc.id)}
-        title="Eliminar documento" description={`¿Eliminar "${deleteDoc?.filename}"? Esta acción no se puede deshacer.`}
+        title="Eliminar documento" description={`¿Eliminar "${deleteDoc?.displayName ?? deleteDoc?.filename}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" loading={deleteDocMutation.isPending} />
 
       {/* ── Dialog crear/editar servicio de internet ── */}
@@ -1199,7 +1233,7 @@ export function ClientDetailPage() {
               </div>
               <div className="space-y-1"><Label>ISP</Label><Input {...isvcForm.register('isp')} placeholder="Antel, Claro..." /></div>
               <div className="space-y-1"><Label>Nro. de servicio</Label><Input {...isvcForm.register('serviceNumber')} placeholder="123456789" /></div>
-              <div className="space-y-1"><Label>Teléfono soporte</Label><Input {...isvcForm.register('phone')} placeholder="0800 123 456" /></div>
+              <div className="space-y-1"><Label>Teléfono asociado</Label><Input {...isvcForm.register('phone')} placeholder="0800 123 456" /></div>
               <div className="space-y-1"><Label>Titular del servicio</Label><Input {...isvcForm.register('titular')} /></div>
             </div>
             <DialogFooter>

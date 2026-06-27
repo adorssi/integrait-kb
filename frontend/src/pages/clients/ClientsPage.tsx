@@ -98,12 +98,10 @@ export function ClientsPage() {
           <p className="text-muted-foreground">{clients.length} clientes activos</p>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
-              {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Sincronizar Backups
-            </Button>
-          )}
+          <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+            {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Sincronizar Backups
+          </Button>
           {isAdmin && <Button onClick={openCreate}><Plus className="h-4 w-4" />Nuevo cliente</Button>}
         </div>
       </div>

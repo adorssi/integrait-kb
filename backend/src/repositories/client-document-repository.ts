@@ -14,6 +14,7 @@ export const ClientDocumentRepository = {
 
   async create(data: {
     clientId: string;
+    displayName?: string | null;
     filename: string;
     mimeType: string;
     size: number;

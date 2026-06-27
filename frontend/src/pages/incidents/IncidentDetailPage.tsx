@@ -82,7 +82,7 @@ export function IncidentDetailPage() {
   const { data: technicians = [] } = useQuery({
     queryKey: ['technicians'],
     queryFn: techniciansService.list,
-    enabled: isAdmin,
+    enabled: !!id,
   });
 
   useEffect(() => {
@@ -406,27 +406,21 @@ export function IncidentDetailPage() {
               <CardTitle className="text-sm text-muted-foreground">Técnico asignado</CardTitle>
             </CardHeader>
             <CardContent>
-              {isAdmin ? (
-                <>
-                  <Select
-                    value={incident.technicianId ?? 'unassigned'}
-                    onValueChange={(v) => assignMutation.mutate(v === 'unassigned' ? null : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sin asignar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Sin asignar</SelectItem>
-                      {technicians.filter(t => t.active).map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {assignMutation.isPending && <p className="text-xs text-muted-foreground mt-1">Guardando...</p>}
-                </>
-              ) : (
-                <p className="text-sm">{incident.assignedTo?.name ?? <span className="text-muted-foreground">Sin asignar</span>}</p>
-              )}
+              <Select
+                value={incident.technicianId ?? 'unassigned'}
+                onValueChange={(v) => assignMutation.mutate(v === 'unassigned' ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sin asignar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Sin asignar</SelectItem>
+                  {technicians.filter(t => t.active).map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {assignMutation.isPending && <p className="text-xs text-muted-foreground mt-1">Guardando...</p>}
             </CardContent>
           </Card>
         </div>

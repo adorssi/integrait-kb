@@ -17,7 +17,7 @@ router.get('/:id', IncidentController.getById);
 router.post('/', IncidentController.create);
 router.put('/:id', IncidentController.update);
 router.patch('/:id/status', IncidentController.changeStatus);
-router.patch('/:id/assign', requireRole(Role.ADMIN), IncidentController.assignTechnician);
+router.patch('/:id/assign', IncidentController.assignTechnician);
 router.post('/:id/solution', IncidentController.registerSolution);
 
 // Comentarios

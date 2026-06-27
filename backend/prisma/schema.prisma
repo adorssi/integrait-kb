@@ -251,6 +251,7 @@ model ClientDocument {
   id          String   @id @default(uuid())
   client      Client   @relation(fields: [clientId], references: [id])
   clientId    String
+  displayName String?
   filename    String
   mimeType    String
   size        Int
