@@ -153,24 +153,36 @@ function CredentialsBadge({ clientId, resourceId, type, others }: CredentialsBad
             <DialogTitle>Confirmar identidad</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">Ingresá tu contraseña del sistema para ver las credenciales del dispositivo.</p>
-          <div className="space-y-2">
-            <Label>Contraseña</Label>
-            <Input
-              type="password"
-              value={verifyPwd}
-              onChange={e => setVerifyPwd(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && verifyPwd && handleVerify()}
-              autoFocus
-              autoComplete="off"
-            />
-            {verifyError && <p className="text-xs text-destructive">{verifyError}</p>}
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" size="sm" onClick={() => setVerifyOpen(false)}>Cancelar</Button>
-            <Button type="button" size="sm" disabled={!verifyPwd || verifying} onClick={handleVerify}>
-              {verifying ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Verificando...</> : 'Confirmar'}
-            </Button>
-          </DialogFooter>
+          {/*
+            autoComplete="off" en el form es ignorado por Chrome para passwords.
+            El truco más efectivo es:
+            1. Campos honeypot ocultos que Chrome rellena en lugar del campo real.
+            2. autoComplete="new-password" en el campo real (Chrome no pre-rellena con credenciales guardadas).
+            3. Sin autoFocus para no disparar el autofill al montar el dialog.
+          */}
+          <form autoComplete="off" onSubmit={e => { e.preventDefault(); if (verifyPwd) handleVerify(); }}>
+            {/* Honeypot: Chrome llena estos campos ocultos en lugar del input real */}
+            <input type="text" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} autoComplete="username" readOnly />
+            <input type="password" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} autoComplete="current-password" readOnly />
+            <div className="space-y-2">
+              <Label htmlFor="verify-pwd-input">Contraseña</Label>
+              <Input
+                id="verify-pwd-input"
+                type="password"
+                value={verifyPwd}
+                onChange={e => setVerifyPwd(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && verifyPwd && handleVerify()}
+                autoComplete="new-password"
+              />
+              {verifyError && <p className="text-xs text-destructive">{verifyError}</p>}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" size="sm" onClick={() => setVerifyOpen(false)}>Cancelar</Button>
+              <Button type="submit" size="sm" disabled={!verifyPwd || verifying}>
+                {verifying ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Verificando...</> : 'Confirmar'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -345,7 +357,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar cámara o IP..." className="pl-9 w-52" value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
+            <Input type="search" placeholder="Buscar cámara o IP..." className="pl-9 w-52" value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
           </div>
           <Select value={filterNvrId} onValueChange={setFilterNvrId}>
             <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todos los NVRs" /></SelectTrigger>
