@@ -405,7 +405,7 @@ curl -X POST .../incidents/UUID/solution \
 ```
 [1. ARCHITECT] → Diseño + ADR
         ↓ aprobado
-[2. DEVELOPER] → Implementación
+[2. DEVELOPER] → Implementación en rama feat/nombre
         ↓ completo
 [3. QA ENGINEER] → Tests + Reporte
         ↓ aprobado
@@ -413,11 +413,45 @@ curl -X POST .../incidents/UUID/solution \
         ↓ aprobado
 [5. TECH WRITER] → Documentación
         ↓ completo
-[MERGE a main] ✅
+[PR a main] → Revisión → Merge ✅
 ```
 
 **Prompt para iniciar cualquier feature:**
 > "Siguiendo el proceso completo del equipo, implementá: [descripción]"
+
+---
+
+## 🌿 Flujo de Ramas (Git Workflow)
+
+**REGLA: Todo cambio de código va en una rama separada. Nunca commitear directamente a `main`.**
+
+```bash
+# 1. Crear rama para la feature (desde main actualizado)
+git checkout main && git pull
+git checkout -b feat/nombre-descriptivo
+
+# 2. Desarrollar siguiendo el proceso del equipo...
+
+# 3. Al finalizar los 5 pasos, crear PR
+git push -u origin feat/nombre-descriptivo
+gh pr create --base main --title "feat: descripción" --body "..."
+
+# 4. Merge solo después de revisión aprobada
+```
+
+**Convención de nombres de rama:**
+| Tipo | Prefijo | Ejemplo |
+|---|---|---|
+| Feature nueva | `feat/` | `feat/sucursales-vlans` |
+| Bug fix | `fix/` | `fix/login-401-redirect` |
+| Refactor | `refactor/` | `refactor/backup-service` |
+| Docs | `docs/` | `docs/api-endpoints` |
+
+**Reglas:**
+- `main` siempre debe estar en estado deployable
+- Nunca hacer `git push --force` a `main`
+- Una PR por feature (no acumular features no relacionadas)
+- Claude crea la rama, hace los commits y propone la PR — el merge lo aprueba el equipo
 
 ---
 
