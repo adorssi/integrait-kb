@@ -77,6 +77,9 @@ export function ClientsPage() {
     servicePlan: nullify(d.servicePlan),
     contractStart: nullify(d.contractStart),
     contractEnd: nullify(d.contractEnd),
+    hasBranches: false,
+    hasCameras: false,
+    hasBackups: false,
   });
 
   const createMutation = useMutation({

@@ -26,6 +26,10 @@ model Client {
   contractStart DateTime?
   contractEnd   DateTime?
   servicePlan   String?
+  // Features habilitadas por cliente
+  hasBranches   Boolean     @default(false)
+  hasCameras    Boolean     @default(false)
+  hasBackups    Boolean     @default(false)
   active        Boolean     @default(true)
   branches      Branch[]
   incidents     Incident[]
@@ -125,21 +129,24 @@ model Technician {
 }
 
 model Equipment {
-  id        String     @id @default(uuid())
-  name      String
-  ip        String?
-  brand     String?
-  model     String?
-  location  String?
-  os        String?
-  active    Boolean    @default(true)
-  client    Client     @relation(fields: [clientId], references: [id])
-  clientId  String
-  branch    Branch?    @relation(fields: [branchId], references: [id])
-  branchId  String?
-  incidents Incident[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                String     @id @default(uuid())
+  name              String
+  ip                String?
+  brand             String?
+  model             String?
+  location          String?
+  os                String?
+  notes             String?
+  encryptedUsername String?
+  encryptedPassword String?
+  active            Boolean    @default(true)
+  client            Client     @relation(fields: [clientId], references: [id])
+  clientId          String
+  branch            Branch?    @relation(fields: [branchId], references: [id])
+  branchId          String?
+  incidents         Incident[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 }
 
 model Contact {

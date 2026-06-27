@@ -9,9 +9,15 @@ const createSchema = z.object({
   model: z.string().optional(),
   location: z.string().optional(),
   os: z.string().optional(),
+  notes: z.string().optional(),
+  username: z.string().optional(),
+  password: z.string().optional(),
 });
 
-const updateSchema = createSchema.partial();
+const updateSchema = createSchema.extend({
+  username: z.string().nullable().optional(),
+  password: z.string().nullable().optional(),
+}).partial();
 
 export const EquipmentController = {
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -27,6 +33,15 @@ export const EquipmentController = {
     try {
       const equipment = await EquipmentService.getDetail(req.params.clientId, req.params.id);
       res.json({ data: equipment });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getCredentials(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const creds = await EquipmentService.getCredentials(req.params.clientId, req.params.id);
+      res.json({ data: creds });
     } catch (err) {
       next(err);
     }

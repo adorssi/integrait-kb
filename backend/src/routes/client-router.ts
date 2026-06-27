@@ -27,12 +27,13 @@ router.put('/:id', requireRole(Role.ADMIN), ClientController.update);
 router.patch('/:id/infrastructure', ClientController.updateInfrastructure);
 router.patch('/:id/deactivate', requireRole(Role.ADMIN), ClientController.deactivate);
 
-// Equipos (anidados bajo cliente)
+// Equipos (anidados bajo cliente) — cualquier usuario autenticado puede gestionar
 router.get('/:clientId/equipment', EquipmentController.list);
 router.get('/:clientId/equipment/:id', EquipmentController.getDetail);
-router.post('/:clientId/equipment', requireRole(Role.ADMIN), EquipmentController.create);
-router.put('/:clientId/equipment/:id', requireRole(Role.ADMIN), EquipmentController.update);
-router.patch('/:clientId/equipment/:id/deactivate', requireRole(Role.ADMIN), EquipmentController.deactivate);
+router.get('/:clientId/equipment/:id/credentials', EquipmentController.getCredentials);
+router.post('/:clientId/equipment', EquipmentController.create);
+router.put('/:clientId/equipment/:id', EquipmentController.update);
+router.patch('/:clientId/equipment/:id/deactivate', EquipmentController.deactivate);
 
 // Funcionarios (anidados bajo cliente)
 router.get('/:clientId/contacts', ContactController.list);

@@ -152,6 +152,9 @@ export interface ICreateEquipmentDTO {
   model?: string;
   location?: string;
   os?: string;
+  notes?: string;
+  encryptedUsername?: string;
+  encryptedPassword?: string;
 }
 
 export interface IUpdateEquipmentDTO {
@@ -161,6 +164,14 @@ export interface IUpdateEquipmentDTO {
   model?: string;
   location?: string;
   os?: string;
+  notes?: string;
+  encryptedUsername?: string | null;
+  encryptedPassword?: string | null;
+}
+
+export interface IEquipmentCredentials {
+  username: string | null;
+  password: string | null;
 }
 
 export interface ICreateContactDTO {

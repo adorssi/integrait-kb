@@ -53,18 +53,23 @@ export const clientsService = {
     return data.data;
   },
 
-  async createEquipment(clientId: string, payload: Partial<Equipment>): Promise<Equipment> {
+  async createEquipment(clientId: string, payload: Partial<Equipment> & { username?: string; password?: string }): Promise<Equipment> {
     const { data } = await api.post<ApiResponse<Equipment>>(`/clients/${clientId}/equipment`, payload);
     return data.data;
   },
 
-  async updateEquipment(clientId: string, equipmentId: string, payload: Partial<Equipment>): Promise<Equipment> {
+  async updateEquipment(clientId: string, equipmentId: string, payload: Partial<Equipment> & { username?: string | null; password?: string | null }): Promise<Equipment> {
     const { data } = await api.put<ApiResponse<Equipment>>(`/clients/${clientId}/equipment/${equipmentId}`, payload);
     return data.data;
   },
 
   async deactivateEquipment(clientId: string, equipmentId: string): Promise<Equipment> {
     const { data } = await api.patch<ApiResponse<Equipment>>(`/clients/${clientId}/equipment/${equipmentId}/deactivate`);
+    return data.data;
+  },
+
+  async getEquipmentCredentials(clientId: string, equipmentId: string): Promise<{ username: string | null; password: string | null }> {
+    const { data } = await api.get<ApiResponse<{ username: string | null; password: string | null }>>(`/clients/${clientId}/equipment/${equipmentId}/credentials`);
     return data.data;
   },
 

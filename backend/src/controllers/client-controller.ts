@@ -18,6 +18,9 @@ const createSchema = z.object({
   servicePlan: safeShortText.optional().nullable(),
   contractStart: z.coerce.date().optional().nullable(),
   contractEnd: z.coerce.date().optional().nullable(),
+  hasBranches: z.boolean().optional(),
+  hasCameras: z.boolean().optional(),
+  hasBackups: z.boolean().optional(),
 });
 
 const updateSchema = createSchema.partial();
@@ -33,6 +36,9 @@ const infrastructureSchema = z.object({
   email: safeEmail.optional().nullable(),
   address: safeShortText.optional().nullable(),
   notes: safeText.optional().nullable(),
+  hasBranches: z.boolean().optional(),
+  hasCameras: z.boolean().optional(),
+  hasBackups: z.boolean().optional(),
 });
 
 const listQuerySchema = z.object({

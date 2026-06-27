@@ -44,6 +44,9 @@ export interface Client {
   contractStart?: string | null;
   contractEnd?: string | null;
   servicePlan?: string | null;
+  hasBranches: boolean;
+  hasCameras: boolean;
+  hasBackups: boolean;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -93,8 +96,11 @@ export interface Equipment {
   model?: string | null;
   location?: string | null;
   os?: string | null;
+  notes?: string | null;
+  hasCredentials: boolean;
   active: boolean;
   clientId: string;
+  branchId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
