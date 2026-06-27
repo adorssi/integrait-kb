@@ -36,9 +36,18 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function getAuthToken(): string | null {
+  try {
+    const raw = localStorage.getItem('auth-storage');
+    return raw ? (JSON.parse(raw)?.state?.token ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Descarga un archivo autenticado (con JWT) creando un blob URL temporal
 export async function downloadAuthFile(url: string, filename: string): Promise<void> {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   const response = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });

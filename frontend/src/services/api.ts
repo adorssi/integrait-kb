@@ -2,16 +2,24 @@ import axios from 'axios';
 
 export const api = axios.create({
   baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
 });
 
-// Agrega el JWT en cada request si existe
+// Lee el JWT desde Zustand persist (clave 'auth-storage')
+function getToken(): string | null {
+  try {
+    const raw = localStorage.getItem('auth-storage');
+    return raw ? (JSON.parse(raw)?.state?.token ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 api.interceptors.request.use((config) => {
-  // Lee desde Zustand persist — clave 'auth-storage'
-  const raw = localStorage.getItem('auth-storage');
-  const token: string | null = raw ? (JSON.parse(raw)?.state?.token ?? null) : null;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  // FormData: deja que el browser fije el Content-Type con el boundary correcto
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
   }
   return config;
 });

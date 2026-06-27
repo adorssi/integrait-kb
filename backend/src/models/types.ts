@@ -155,6 +155,7 @@ export interface ICreateEquipmentDTO {
   notes?: string;
   encryptedUsername?: string;
   encryptedPassword?: string;
+  branchId?: string | null;
 }
 
 export interface IUpdateEquipmentDTO {
@@ -167,6 +168,7 @@ export interface IUpdateEquipmentDTO {
   notes?: string;
   encryptedUsername?: string | null;
   encryptedPassword?: string | null;
+  branchId?: string | null;
 }
 
 export interface IEquipmentCredentials {

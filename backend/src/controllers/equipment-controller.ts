@@ -12,11 +12,13 @@ const createSchema = z.object({
   notes: z.string().optional(),
   username: z.string().optional(),
   password: z.string().optional(),
+  branchId: z.string().uuid().optional().nullable(),
 });
 
 const updateSchema = createSchema.extend({
   username: z.string().nullable().optional(),
   password: z.string().nullable().optional(),
+  branchId: z.string().uuid().nullable().optional(),
 }).partial();
 
 export const EquipmentController = {
