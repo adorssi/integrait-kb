@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { IAuthPayload, Role } from '../models/types';
 import { AppError } from './error-handler';
+import { TechnicianRepository } from '../repositories/technician-repository';
 
 // Extensión del tipo Request para incluir el técnico autenticado
 declare global {
@@ -12,7 +13,7 @@ declare global {
   }
 }
 
-export function authenticate(req: Request, _res: Response, next: NextFunction): void {
+export async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
@@ -26,9 +27,17 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
     if (!secret) throw new Error('JWT_SECRET no configurado');
 
     const payload = jwt.verify(token, secret) as IAuthPayload;
+
+    // Verificar en DB que el técnico sigue activo — garantiza revocación inmediata al deshabilitar
+    const technician = await TechnicianRepository.findById(payload.sub);
+    if (!technician || !technician.active) {
+      return next(new AppError(401, 'Cuenta desactivada o no encontrada'));
+    }
+
     req.technician = payload;
     next();
-  } catch {
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
     next(new AppError(401, 'Token inválido o expirado'));
   }
 }
