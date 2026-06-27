@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, UserX, Shield, User } from 'lucide-react';
+import { Plus, Pencil, UserX, Shield, User, LockKeyhole, LockKeyholeOpen } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -19,12 +19,31 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { formatDate } from '@/lib/utils';
 
 const techSchema = z.object({
-  name: z.string().min(1, 'Nombre requerido'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(8, 'Mínimo 8 caracteres').optional().or(z.literal('')),
+  name: z.string().min(1, 'Nombre requerido').max(100, 'Máximo 100 caracteres'),
+  email: z.string().email('Email inválido').max(255, 'Máximo 255 caracteres'),
+  password: z.string()
+    .min(8, 'Mínimo 8 caracteres')
+    .max(128, 'Máximo 128 caracteres')
+    .regex(/[A-Z]/, 'Debe tener al menos una mayúscula')
+    .regex(/[0-9]/, 'Debe tener al menos un número')
+    .regex(/[^A-Za-z0-9]/, 'Debe tener al menos un carácter especial')
+    .optional()
+    .or(z.literal('')),
   role: z.enum(['TECHNICIAN', 'ADMIN']),
 });
 type TechForm = z.infer<typeof techSchema>;
+
+function isLocked(t: Technician): boolean {
+  return !!t.lockedUntil && new Date(t.lockedUntil) > new Date();
+}
+
+function lockLabel(t: Technician): string {
+  if (!t.lockedUntil) return '';
+  const until = new Date(t.lockedUntil);
+  if (until >= new Date('2099-01-01')) return 'Bloqueado permanentemente';
+  const diffMin = Math.ceil((until.getTime() - Date.now()) / 60000);
+  return `Bloqueado (${diffMin} min restantes)`;
+}
 
 export function TechniciansPage() {
   const qc = useQueryClient();
@@ -56,6 +75,11 @@ export function TechniciansPage() {
   const deactivateMutation = useMutation({
     mutationFn: (id: string) => techniciansService.deactivate(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['technicians'] }); setDeactivateTarget(null); },
+  });
+
+  const unlockMutation = useMutation({
+    mutationFn: (id: string) => techniciansService.unlock(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['technicians'] }),
   });
 
   const openCreate = () => { reset({ role: 'TECHNICIAN', name: '', email: '', password: '' }); setCreating(true); };
@@ -102,12 +126,24 @@ export function TechniciansPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={t.active ? 'success' : 'outline'}>{t.active ? 'Activo' : 'Inactivo'}</Badge>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge variant={t.active ? 'success' : 'outline'}>{t.active ? 'Activo' : 'Inactivo'}</Badge>
+                        {isLocked(t) && (
+                          <Badge variant="critical" className="gap-1">
+                            <LockKeyhole className="h-3 w-3" />{lockLabel(t)}
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(t.createdAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(t)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                        {isLocked(t) && t.id !== me?.id && (
+                          <Button variant="ghost" size="icon" onClick={() => unlockMutation.mutate(t.id)} title="Desbloquear" className="text-priority-medium hover:text-priority-medium" disabled={unlockMutation.isPending}>
+                            <LockKeyholeOpen className="h-4 w-4" />
+                          </Button>
+                        )}
                         {t.active && t.id !== me?.id && (
                           <Button variant="ghost" size="icon" onClick={() => setDeactivateTarget(t)} title="Desactivar" className="text-destructive hover:text-destructive">
                             <UserX className="h-4 w-4" />

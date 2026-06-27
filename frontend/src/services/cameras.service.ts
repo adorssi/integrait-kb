@@ -9,8 +9,8 @@ export interface CameraForm {
   location?: string;
   brand?: string;
   model?: string;
-  username?: string;
-  password?: string;
+  username?: string | null;
+  password?: string | null;
 }
 
 export const camerasService = {

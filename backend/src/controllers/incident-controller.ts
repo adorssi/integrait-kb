@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { IncidentService } from '../services/incident-service';
 import { IncidentStatus, Priority } from '../models/types';
+import { safeName, safeLongText, safeText } from '../utils/validators';
 
 const createSchema = z.object({
-  title: z.string().min(1, 'Título requerido'),
-  description: z.string().min(1, 'Descripción requerida'),
+  title: safeName.pipe(z.string().min(1, 'Título requerido')),
+  description: safeText.pipe(z.string().min(1, 'Descripción requerida')),
   clientId: z.string().uuid('clientId debe ser un UUID'),
   priority: z.nativeEnum(Priority).optional(),
   technicianId: z.string().uuid().optional(),
@@ -14,8 +15,8 @@ const createSchema = z.object({
 });
 
 const updateSchema = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().min(1).optional(),
+  title: safeName.optional(),
+  description: safeText.optional(),
   priority: z.nativeEnum(Priority).optional(),
   tagIds: z.array(z.string().uuid()).optional(),
 });
@@ -29,7 +30,7 @@ const assignSchema = z.object({
 });
 
 const solutionSchema = z.object({
-  description: z.string().min(20, 'La descripción debe tener al menos 20 caracteres'),
+  description: safeLongText.pipe(z.string().min(20, 'La descripción debe tener al menos 20 caracteres')),
   timeSpentMinutes: z.number().int().positive('El tiempo debe ser un número positivo'),
 });
 

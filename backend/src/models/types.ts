@@ -1,3 +1,6 @@
+import type { TechnicianPublic } from '../utils/technician-utils';
+export type { TechnicianPublic };
+
 // Enums — espejo de los enums de Prisma para uso en la capa de aplicación
 export enum Role {
   TECHNICIAN = 'TECHNICIAN',
@@ -78,6 +81,8 @@ export interface ITechnician {
   passwordHash: string;
   role: Role;
   active: boolean;
+  failedLoginAttempts: number;
+  lockedUntil: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -195,6 +200,7 @@ export interface ICreateIncidentDTO {
   clientId: string;
   priority?: Priority;
   technicianId?: string;
+  equipmentId?: string;
   tagIds?: string[];
 }
 
@@ -226,7 +232,7 @@ export interface ILoginDTO {
 
 export interface IAuthResponse {
   token: string;
-  technician: Omit<ITechnician, 'passwordHash'>;
+  technician: TechnicianPublic;
 }
 
 // Respuestas API genéricas
@@ -248,4 +254,5 @@ export interface IIncidentFilters {
   technicianId?: string;
   status?: IncidentStatus;
   priority?: Priority;
+  equipmentId?: string;
 }

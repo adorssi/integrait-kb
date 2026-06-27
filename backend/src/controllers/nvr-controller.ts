@@ -1,21 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { NVRService } from '../services/nvr-service';
+import { safeName, safeText, ipAddress, deviceCredential } from '../utils/validators';
 
 const createSchema = z.object({
-  name: z.string().min(1),
-  ip: z.string().min(1),
+  name: safeName,
+  ip: ipAddress,
   port: z.number().int().min(1).max(65535).optional(),
-  brand: z.string().optional(),
-  model: z.string().optional(),
-  notes: z.string().optional(),
-  username: z.string().optional(),
-  password: z.string().optional(),
+  brand: safeText.optional(),
+  model: safeText.optional(),
+  notes: safeText.optional(),
+  username: deviceCredential.optional(),
+  password: deviceCredential.optional(),
 });
 
 const updateSchema = createSchema.partial().extend({
-  username: z.string().nullable().optional(),
-  password: z.string().nullable().optional(),
+  username: deviceCredential.nullable().optional(),
+  password: deviceCredential.nullable().optional(),
 });
 
 export const NVRController = {

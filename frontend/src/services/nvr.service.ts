@@ -8,8 +8,8 @@ export interface NVRForm {
   brand?: string;
   model?: string;
   notes?: string;
-  username?: string;
-  password?: string;
+  username?: string | null;
+  password?: string | null;
 }
 
 export const nvrService = {

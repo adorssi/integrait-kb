@@ -1,18 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { TechnicianService } from '../services/technician-service';
+import { Role } from '../models/types';
+import { safeName, safeEmail, strongPassword } from '../utils/validators';
 
 const createSchema = z.object({
-  name: z.string().min(1, 'Nombre requerido'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(8, 'Password debe tener al menos 8 caracteres'),
+  name: safeName,
+  email: safeEmail,
+  password: strongPassword,
   role: z.enum(['TECHNICIAN', 'ADMIN']).optional(),
 });
 
 const updateSchema = z.object({
-  name: z.string().min(1).optional(),
-  email: z.string().email('Email inválido').optional(),
-  password: z.string().min(8, 'Password debe tener al menos 8 caracteres').optional(),
+  name: safeName.optional(),
+  email: safeEmail.optional(),
+  password: strongPassword.optional(),
   role: z.enum(['TECHNICIAN', 'ADMIN']).optional(),
 });
 
@@ -38,7 +40,7 @@ export const TechnicianController = {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = createSchema.parse(req.body);
-      const technician = await TechnicianService.create(data);
+      const technician = await TechnicianService.create({ ...data, role: data.role as Role | undefined });
       res.status(201).json({ data: technician });
     } catch (err) {
       next(err);
@@ -49,7 +51,7 @@ export const TechnicianController = {
     try {
       const data = updateSchema.parse(req.body);
       const requesterId = req.technician!.sub;
-      const technician = await TechnicianService.update(req.params.id, data, requesterId);
+      const technician = await TechnicianService.update(req.params.id, { ...data, role: data.role as Role | undefined }, requesterId);
       res.json({ data: technician });
     } catch (err) {
       next(err);
@@ -60,6 +62,16 @@ export const TechnicianController = {
     try {
       const requesterId = req.technician!.sub;
       const technician = await TechnicianService.deactivate(req.params.id, requesterId);
+      res.json({ data: technician });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async unlock(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const requesterId = req.technician!.sub;
+      const technician = await TechnicianService.unlock(req.params.id, requesterId);
       res.json({ data: technician });
     } catch (err) {
       next(err);

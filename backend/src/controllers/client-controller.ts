@@ -1,19 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { ClientService } from '../services/client-service';
+import { safeName, safeShortText, safeText, safeEmail, ipAddress, cidrRange } from '../utils/validators';
 
 const createSchema = z.object({
-  name: z.string().min(1, 'Nombre requerido'),
-  city: z.string().min(1, 'Ciudad requerida'),
-  rut: z.string().min(1, 'RUT requerido'),
-  phone: z.string().min(1, 'Teléfono requerido'),
-  email: z.string().email().optional().nullable(),
-  address: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-  publicIp: z.string().optional().nullable(),
-  isp: z.string().optional().nullable(),
-  networkRange: z.string().optional().nullable(),
-  servicePlan: z.string().optional().nullable(),
+  name: safeName,
+  city: safeName,
+  rut: safeShortText.pipe(z.string().min(1, 'RUT requerido')),
+  phone: safeShortText.pipe(z.string().min(1, 'Teléfono requerido')),
+  email: safeEmail.optional().nullable(),
+  address: safeShortText.optional().nullable(),
+  notes: safeText.optional().nullable(),
+  publicIp: ipAddress.optional().nullable(),
+  isp: safeShortText.optional().nullable(),
+  networkRange: cidrRange.optional().nullable(),
+  servicePlan: safeShortText.optional().nullable(),
   contractStart: z.coerce.date().optional().nullable(),
   contractEnd: z.coerce.date().optional().nullable(),
 });
@@ -21,19 +22,19 @@ const createSchema = z.object({
 const updateSchema = createSchema.partial();
 
 const infrastructureSchema = z.object({
-  publicIp: z.string().optional().nullable(),
-  isp: z.string().optional().nullable(),
-  networkRange: z.string().optional().nullable(),
-  servicePlan: z.string().optional().nullable(),
+  publicIp: ipAddress.optional().nullable(),
+  isp: safeShortText.optional().nullable(),
+  networkRange: cidrRange.optional().nullable(),
+  servicePlan: safeShortText.optional().nullable(),
   contractStart: z.coerce.date().optional().nullable(),
   contractEnd: z.coerce.date().optional().nullable(),
-  email: z.string().email().optional().nullable(),
-  address: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  email: safeEmail.optional().nullable(),
+  address: safeShortText.optional().nullable(),
+  notes: safeText.optional().nullable(),
 });
 
 const listQuerySchema = z.object({
-  search: z.string().optional(),
+  search: z.string().max(255).optional(),
 });
 
 export const ClientController = {

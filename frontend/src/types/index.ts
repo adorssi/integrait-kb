@@ -23,6 +23,7 @@ export interface Technician {
   email: string;
   role: Role;
   active: boolean;
+  lockedUntil: string | null;
   createdAt: string;
   updatedAt: string;
 }

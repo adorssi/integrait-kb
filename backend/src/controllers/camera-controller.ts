@@ -1,28 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { CameraService } from '../services/camera-service';
+import { safeName, safeText, ipAddress, deviceCredential } from '../utils/validators';
 
 const createSchema = z.object({
   nvrId: z.string().uuid().optional(),
-  name: z.string().min(1),
-  ip: z.string().optional(),
+  name: safeName,
+  ip: ipAddress.optional(),
   channel: z.number().int().min(1).optional(),
-  location: z.string().optional(),
-  brand: z.string().optional(),
-  model: z.string().optional(),
-  username: z.string().optional(),
-  password: z.string().optional(),
+  location: safeText.optional(),
+  brand: safeText.optional(),
+  model: safeText.optional(),
+  username: deviceCredential.optional(),
+  password: deviceCredential.optional(),
 });
 
 const updateSchema = createSchema.partial().extend({
   nvrId: z.string().uuid().nullable().optional(),
-  username: z.string().nullable().optional(),
-  password: z.string().nullable().optional(),
+  username: deviceCredential.nullable().optional(),
+  password: deviceCredential.nullable().optional(),
 });
 
 const listQuerySchema = z.object({
   nvrId: z.string().uuid().optional(),
-  search: z.string().optional(),
+  search: z.string().max(255).optional(),
 });
 
 export const CameraController = {

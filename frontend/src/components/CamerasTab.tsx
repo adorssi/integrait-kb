@@ -60,8 +60,19 @@ function CredentialField({ value }: { label: string; value: string | null }) {
   );
 }
 
-function CredentialsBadge({ clientId, resourceId, type }: { clientId: string; resourceId: string; type: 'nvr' | 'camera' }) {
+interface CredentialsBadgeProps {
+  clientId: string;
+  resourceId: string;
+  type: 'nvr' | 'camera';
+  others: { id: string; name: string }[];
+}
+
+function CredentialsBadge({ clientId, resourceId, type, others }: CredentialsBadgeProps) {
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [propagating, setPropagating] = useState(false);
+  const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['credentials', type, resourceId],
     queryFn: () => type === 'nvr'
@@ -70,9 +81,41 @@ function CredentialsBadge({ clientId, resourceId, type }: { clientId: string; re
     enabled: false,
   });
 
+  const propagateMutation = useMutation({
+    mutationFn: async () => {
+      for (const targetId of selectedTargets) {
+        const payload = {
+          username: data?.username ?? null,
+          password: data?.password ?? null,
+        };
+        if (type === 'nvr') {
+          await nvrService.update(clientId, targetId, payload);
+        } else {
+          await camerasService.update(clientId, targetId, payload);
+        }
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [type === 'nvr' ? 'nvrs' : 'cameras', clientId] });
+      setPropagating(false);
+      setSelectedTargets(new Set());
+    },
+  });
+
   const handleReveal = () => {
     setOpen(true);
     refetch();
+  };
+
+  const hasCredentials = data && (data.username || data.password);
+  const canPropagate = hasCredentials && others.length > 0;
+
+  const toggleTarget = (id: string) => {
+    setSelectedTargets(prev => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
+    });
   };
 
   return (
@@ -80,21 +123,74 @@ function CredentialsBadge({ clientId, resourceId, type }: { clientId: string; re
       <Button type="button" variant="ghost" size="icon" title="Ver credenciales" onClick={handleReveal}>
         <Key className="h-3.5 w-3.5" />
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader><DialogTitle>Credenciales</DialogTitle></DialogHeader>
-          {isLoading ? (
-            <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPropagating(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{propagating ? 'Copiar credenciales a otros' : 'Credenciales'}</DialogTitle>
+          </DialogHeader>
+
+          {!propagating ? (
+            <>
+              {isLoading ? (
+                <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Usuario</p>
+                    <CredentialField label="Usuario" value={data?.username ?? null} />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Contraseña</p>
+                    <CredentialField label="Contraseña" value={data?.password ?? null} />
+                  </div>
+                  {canPropagate && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => { setPropagating(true); setSelectedTargets(new Set()); }}
+                    >
+                      Copiar a otros {type === 'nvr' ? 'NVRs' : 'cámaras'}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <div className="space-y-3">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Usuario</p>
-                <CredentialField label="Usuario" value={data?.username ?? null} />
+              <p className="text-xs text-muted-foreground">
+                Seleccioná los {type === 'nvr' ? 'NVRs' : 'cámaras'} a los que querés copiar estas credenciales:
+              </p>
+              <div className="max-h-48 overflow-y-auto space-y-1 rounded border p-2">
+                {others.map(target => (
+                  <label key={target.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedTargets.has(target.id)}
+                      onChange={() => toggleTarget(target.id)}
+                      className="h-3.5 w-3.5 accent-primary"
+                    />
+                    {target.name}
+                  </label>
+                ))}
               </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Contraseña</p>
-                <CredentialField label="Contraseña" value={data?.password ?? null} />
-              </div>
+              {propagateMutation.isError && (
+                <p className="text-xs text-destructive">Error al copiar credenciales. Verificá la conexión.</p>
+              )}
+              <DialogFooter className="gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setPropagating(false)}>
+                  Volver
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={selectedTargets.size === 0 || propagateMutation.isPending}
+                  onClick={() => propagateMutation.mutate()}
+                >
+                  {propagateMutation.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Copiando...</> : `Copiar a ${selectedTargets.size} seleccionado${selectedTargets.size !== 1 ? 's' : ''}`}
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
@@ -265,7 +361,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
                       <Badge variant="secondary" className="text-xs">{nvrCams.length} cám{nvrCams.length !== 1 ? 's' : ''}</Badge>
                     </button>
                     <div className="flex items-center gap-1">
-                      <CredentialsBadge clientId={clientId} resourceId={nvr.id} type="nvr" />
+                      <CredentialsBadge clientId={clientId} resourceId={nvr.id} type="nvr" others={nvrs.filter(n => n.id !== nvr.id).map(n => ({ id: n.id, name: n.name }))} />
                       <Button type="button" variant="ghost" size="icon" onClick={() => openEditNvr(nvr)}><Pencil className="h-3.5 w-3.5" /></Button>
                       {isAdmin && <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteNvr(nvr)}><Trash2 className="h-3.5 w-3.5" /></Button>}
                     </div>
@@ -293,7 +389,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
                               <td className="py-1.5 text-muted-foreground">{cam.location ?? '—'}</td>
                               <td className="py-1.5">
                                 <div className="flex items-center gap-1 justify-end">
-                                  <CredentialsBadge clientId={clientId} resourceId={cam.id} type="camera" />
+                                  <CredentialsBadge clientId={clientId} resourceId={cam.id} type="camera" others={cameras.filter(c => c.id !== cam.id).map(c => ({ id: c.id, name: c.name }))} />
                                   <Button type="button" variant="ghost" size="icon" onClick={() => openEditCam(cam)}><Pencil className="h-3.5 w-3.5" /></Button>
                                   {isAdmin && <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteCam(cam)}><Trash2 className="h-3.5 w-3.5" /></Button>}
                                 </div>
@@ -334,7 +430,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
                         <td className="py-1.5 text-muted-foreground">{cam.location ?? '—'}</td>
                         <td className="py-1.5">
                           <div className="flex items-center gap-1 justify-end">
-                            <CredentialsBadge clientId={clientId} resourceId={cam.id} type="camera" />
+                            <CredentialsBadge clientId={clientId} resourceId={cam.id} type="camera" others={cameras.filter(c => c.id !== cam.id).map(c => ({ id: c.id, name: c.name }))} />
                             <Button type="button" variant="ghost" size="icon" onClick={() => openEditCam(cam)}><Pencil className="h-3.5 w-3.5" /></Button>
                             {isAdmin && <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteCam(cam)}><Trash2 className="h-3.5 w-3.5" /></Button>}
                           </div>

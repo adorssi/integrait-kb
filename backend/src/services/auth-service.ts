@@ -3,13 +3,19 @@ import jwt from 'jsonwebtoken';
 import { TechnicianRepository } from '../repositories/technician-repository';
 import { IAuthResponse, IAuthPayload, Role } from '../models/types';
 import { AppError } from '../middlewares/error-handler';
-import { toPublic } from '../utils/technician-utils';
+import { toPublic, TechnicianPublic } from '../utils/technician-utils';
+
+const MAX_LOGIN_ATTEMPTS = 5;
+const ADMIN_LOCK_MS = 5 * 60 * 1000; // 5 minutos
+// Fecha futura usada como "bloqueo permanente" para roles no-admin
+const PERMANENT_LOCK = new Date('2099-12-31T23:59:59Z');
 
 export const AuthService = {
   /**
    * Autentica un técnico con email y password.
    * Devuelve JWT firmado + datos públicos del técnico.
-   * Lanza AppError 401 si las credenciales son inválidas o el técnico está inactivo.
+   * Lanza AppError 401 si las credenciales son inválidas o la cuenta está desactivada.
+   * Lanza AppError 423 si la cuenta está bloqueada (con retryAfterSeconds si aplica).
    */
   async login(email: string, password: string): Promise<IAuthResponse> {
     const technician = await TechnicianRepository.findByEmail(email);
@@ -23,9 +29,39 @@ export const AuthService = {
       throw new AppError(401, 'Cuenta desactivada');
     }
 
+    // Verificar bloqueo activo
+    if (technician.lockedUntil) {
+      const now = new Date();
+      if (technician.lockedUntil > now) {
+        const isPermanent = technician.lockedUntil >= PERMANENT_LOCK;
+        if (isPermanent) {
+          throw new AppError(423, 'Cuenta bloqueada. Contactá al administrador.');
+        }
+        const retryAfterSeconds = Math.ceil(
+          (technician.lockedUntil.getTime() - now.getTime()) / 1000,
+        );
+        throw new AppError(423, 'Cuenta bloqueada temporalmente.', { retryAfterSeconds });
+      }
+      // Bloqueo expirado (admin auto-desbloqueo)
+      await TechnicianRepository.resetFailedAttempts(technician.id);
+    }
+
     const passwordMatch = await bcrypt.compare(password, technician.passwordHash);
     if (!passwordMatch) {
+      const newAttempts = await TechnicianRepository.incrementFailedAttempts(technician.id);
+      if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+        const lockedUntil =
+          technician.role === 'ADMIN'
+            ? new Date(Date.now() + ADMIN_LOCK_MS)
+            : PERMANENT_LOCK;
+        await TechnicianRepository.setLock(technician.id, lockedUntil);
+      }
       throw new AppError(401, 'Credenciales inválidas');
+    }
+
+    // Login exitoso — resetear contador de intentos fallidos
+    if (technician.failedLoginAttempts > 0) {
+      await TechnicianRepository.resetFailedAttempts(technician.id);
     }
 
     const secret = process.env.JWT_SECRET;
@@ -44,11 +80,7 @@ export const AuthService = {
     return { token, technician: toPublic(technician) };
   },
 
-  /**
-   * Devuelve los datos públicos del técnico autenticado dado su ID.
-   * Lanza AppError 404 si no existe (caso borde: técnico eliminado tras login).
-   */
-  async getMe(technicianId: string): Promise<Omit<Technician, 'passwordHash'>> {
+  async getMe(technicianId: string): Promise<TechnicianPublic> {
     const technician = await TechnicianRepository.findById(technicianId);
     if (!technician) {
       throw new AppError(404, 'Técnico no encontrado');

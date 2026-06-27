@@ -5,6 +5,7 @@ export class AppError extends Error {
   constructor(
     public statusCode: number,
     message: string,
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'AppError';
@@ -31,7 +32,7 @@ export function errorHandler(
 
   // Error de negocio conocido
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({ error: err.message });
+    res.status(err.statusCode).json({ error: err.message, ...err.details });
     return;
   }
 

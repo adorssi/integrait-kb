@@ -12,5 +12,6 @@ router.get('/:id', TechnicianController.getById);
 router.post('/', TechnicianController.create);
 router.put('/:id', TechnicianController.update);
 router.patch('/:id/deactivate', TechnicianController.deactivate);
+router.patch('/:id/unlock', TechnicianController.unlock);
 
 export default router;

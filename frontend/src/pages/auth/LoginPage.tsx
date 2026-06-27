@@ -32,8 +32,19 @@ export function LoginPage() {
     try {
       await login(data.email, data.password);
       navigate('/dashboard');
-    } catch {
-      setError('Credenciales inválidas. Verificá tu email y contraseña.');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number; data?: { retryAfterSeconds?: number } } })?.response?.status;
+      const retryAfterSeconds = (err as { response?: { data?: { retryAfterSeconds?: number } } })?.response?.data?.retryAfterSeconds;
+      if (status === 423) {
+        if (retryAfterSeconds) {
+          const min = Math.ceil(retryAfterSeconds / 60);
+          setError(`Cuenta bloqueada temporalmente. Intentá nuevamente en ${min} minuto${min !== 1 ? 's' : ''}.`);
+        } else {
+          setError('Cuenta bloqueada. Contactá al administrador del sistema.');
+        }
+      } else {
+        setError('Credenciales inválidas. Verificá tu email y contraseña.');
+      }
     }
   };
 

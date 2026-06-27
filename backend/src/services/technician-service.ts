@@ -62,4 +62,17 @@ export const TechnicianService = {
     const updated = await TechnicianRepository.deactivate(id);
     return toPublic(updated);
   },
+
+  /** Desbloquea una cuenta: resetea intentos fallidos y elimina lockedUntil */
+  async unlock(id: string, requesterId: string): Promise<TechnicianPublic> {
+    if (id === requesterId) {
+      throw new AppError(400, 'No podés desbloquear tu propia cuenta por este medio');
+    }
+    const technician = await TechnicianRepository.findById(id);
+    if (!technician) throw new AppError(404, 'Técnico no encontrado');
+
+    await TechnicianRepository.resetFailedAttempts(id);
+    const updated = await TechnicianRepository.findById(id);
+    return toPublic(updated!);
+  },
 };

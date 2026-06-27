@@ -1,8 +1,9 @@
 import { Technician } from '@prisma/client';
 
-export type TechnicianPublic = Omit<Technician, 'passwordHash'>;
+// failedLoginAttempts es un contador interno — no se expone en la API
+export type TechnicianPublic = Omit<Technician, 'passwordHash' | 'failedLoginAttempts'>;
 
 export function toPublic(technician: Technician): TechnicianPublic {
-  const { passwordHash: _, ...pub } = technician;
+  const { passwordHash: _p, failedLoginAttempts: _f, ...pub } = technician;
   return pub;
 }

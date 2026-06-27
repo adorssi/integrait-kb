@@ -21,4 +21,9 @@ export const techniciansService = {
     const { data } = await api.patch<ApiResponse<Technician>>(`/technicians/${id}/deactivate`);
     return data.data;
   },
+
+  async unlock(id: string): Promise<Technician> {
+    const { data } = await api.patch<ApiResponse<Technician>>(`/technicians/${id}/unlock`);
+    return data.data;
+  },
 };
