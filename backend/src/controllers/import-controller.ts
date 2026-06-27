@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 
@@ -45,6 +45,33 @@ async function resolveNvr(clientId: string, nvrName?: string): Promise<string | 
   return nvr?.id ?? null;
 }
 
+/** Lee una hoja Excel desde un buffer y retorna las filas como array de objetos, usando la primera fila como headers. */
+async function sheetToRows(buffer: Buffer): Promise<Record<string, unknown>[]> {
+  const wb = new ExcelJS.Workbook();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await wb.xlsx.load(buffer as any);
+  const ws = wb.worksheets[0];
+  if (!ws) return [];
+
+  const headers: string[] = [];
+  ws.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
+    headers.push(String(cell.value ?? ''));
+  });
+
+  const rows: Record<string, unknown>[] = [];
+  ws.eachRow((row, rowNum) => {
+    if (rowNum === 1) return;
+    const obj: Record<string, unknown> = {};
+    row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+      const key = headers[colNum - 1];
+      if (key) obj[key] = cell.value ?? '';
+    });
+    if (Object.values(obj).some((v) => v !== '')) rows.push(obj);
+  });
+
+  return rows;
+}
+
 export const ImportController = {
   async importEquipment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -54,14 +81,11 @@ export const ImportController = {
         return;
       }
 
-      const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
-
+      const rows = await sheetToRows(req.file.buffer);
       const result: ImportResult = { imported: 0, errors: [] };
 
       for (let i = 0; i < rows.length; i++) {
-        const rowNum = i + 2; // fila 1 = headers
+        const rowNum = i + 2;
         const parse = equipmentRowSchema.safeParse(rows[i]);
         if (!parse.success) {
           result.errors.push({ row: rowNum, message: parse.error.issues[0]?.message ?? 'Datos inválidos' });
@@ -98,10 +122,7 @@ export const ImportController = {
         return;
       }
 
-      const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
-
+      const rows = await sheetToRows(req.file.buffer);
       const result: ImportResult = { imported: 0, errors: [] };
 
       for (let i = 0; i < rows.length; i++) {

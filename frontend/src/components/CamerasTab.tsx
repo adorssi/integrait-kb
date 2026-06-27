@@ -161,7 +161,7 @@ function CredentialsBadge({ clientId, resourceId, type, others }: CredentialsBad
               onChange={e => setVerifyPwd(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && verifyPwd && handleVerify()}
               autoFocus
-              autoComplete="current-password"
+              autoComplete="off"
             />
             {verifyError && <p className="text-xs text-destructive">{verifyError}</p>}
           </div>
@@ -345,7 +345,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar cámara o IP..." className="pl-9 w-52" value={search} onChange={e => setSearch(e.target.value)} />
+            <Input placeholder="Buscar cámara o IP..." className="pl-9 w-52" value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
           </div>
           <Select value={filterNvrId} onValueChange={setFilterNvrId}>
             <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todos los NVRs" /></SelectTrigger>
