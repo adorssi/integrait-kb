@@ -29,6 +29,9 @@ const nvrSchema = z.object({
   port: z.coerce.number().int().min(1).max(65535).optional().or(z.literal('')),
   brand: z.string().optional(),
   model: z.string().optional(),
+  serialNumber: z.string().optional(),
+  verificationCode: z.string().optional(),
+  channels: z.coerce.number().int().min(1).max(9999).optional().or(z.literal('')),
   notes: z.string().optional(),
   username: z.string().optional(),
   password: z.string().optional(),
@@ -332,13 +335,17 @@ export function CamerasTab({ clientId, clientName }: Props) {
     e.target.value = '';
   };
 
-  const openCreateNvr = () => { nvrForm.reset({ name: '', ip: '', port: undefined, brand: '', model: '', notes: '', username: '', password: '' }); setNvrDialog({ open: true }); };
-  const openEditNvr = (nvr: NVR) => { nvrForm.reset({ name: nvr.name, ip: nvr.ip, port: nvr.port ?? undefined, brand: nvr.brand ?? '', model: nvr.model ?? '', notes: nvr.notes ?? '', username: '', password: '' }); setNvrDialog({ open: true, edit: nvr }); };
+  const openCreateNvr = () => { nvrForm.reset({ name: '', ip: '', port: undefined, brand: '', model: '', serialNumber: '', verificationCode: '', channels: undefined, notes: '', username: '', password: '' }); setNvrDialog({ open: true }); };
+  const openEditNvr = (nvr: NVR) => { nvrForm.reset({ name: nvr.name, ip: nvr.ip, port: nvr.port ?? undefined, brand: nvr.brand ?? '', model: nvr.model ?? '', serialNumber: nvr.serialNumber ?? '', verificationCode: nvr.verificationCode ?? '', channels: nvr.channels ?? undefined, notes: nvr.notes ?? '', username: '', password: '' }); setNvrDialog({ open: true, edit: nvr }); };
   const openCreateCam = () => { camForm.reset({ name: '', nvrId: '', ip: '', channel: undefined, location: '', brand: '', model: '', username: '', password: '' }); setCamDialog({ open: true }); };
   const openEditCam = (cam: Camera) => { camForm.reset({ name: cam.name, nvrId: cam.nvrId ?? '', ip: cam.ip ?? '', channel: cam.channel ?? undefined, location: cam.location ?? '', brand: cam.brand ?? '', model: cam.model ?? '', username: '', password: '' }); setCamDialog({ open: true, edit: cam }); };
 
   const onSubmitNvr = (d: NVRFormValues) => {
-    const body = { ...d, port: d.port === '' ? undefined : d.port as number | undefined };
+    const body = {
+      ...d,
+      port: d.port === '' ? undefined : d.port as number | undefined,
+      channels: d.channels === '' ? undefined : d.channels as number | undefined,
+    };
     nvrDialog.edit ? updateNvr.mutate(body) : createNvr.mutate(body);
   };
   const onSubmitCam = (d: CameraFormValues) => {
@@ -519,6 +526,9 @@ export function CamerasTab({ clientId, clientName }: Props) {
               <div className="space-y-1"><Label>Puerto</Label><Input {...nvrForm.register('port')} type="number" placeholder="8000" /></div>
               <div className="space-y-1"><Label>Marca</Label><Input {...nvrForm.register('brand')} placeholder="Hikvision" /></div>
               <div className="space-y-1"><Label>Modelo</Label><Input {...nvrForm.register('model')} /></div>
+              <div className="space-y-1"><Label>N° de serie</Label><Input {...nvrForm.register('serialNumber')} placeholder="DS-7608..." /></div>
+              <div className="space-y-1"><Label>Cód. verificación</Label><Input {...nvrForm.register('verificationCode')} /></div>
+              <div className="space-y-1"><Label>Canales</Label><Input {...nvrForm.register('channels')} type="number" placeholder="8" /></div>
               <div className="col-span-2 space-y-1"><Label>Notas</Label><Input {...nvrForm.register('notes')} /></div>
               <div className="col-span-2 border-t pt-3 space-y-1">
                 <p className="text-xs text-muted-foreground mb-2">Credenciales (cifradas — solo visible para administradores)</p>

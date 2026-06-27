@@ -9,6 +9,9 @@ const createSchema = z.object({
   port: z.number().int().min(1).max(65535).optional(),
   brand: safeText.optional(),
   model: safeText.optional(),
+  serialNumber: safeText.optional(),
+  verificationCode: safeText.optional(),
+  channels: z.number().int().min(1).max(9999).optional(),
   notes: safeText.optional(),
   username: deviceCredential.optional(),
   password: deviceCredential.optional(),
@@ -17,6 +20,9 @@ const createSchema = z.object({
 const updateSchema = createSchema.partial().extend({
   username: deviceCredential.nullable().optional(),
   password: deviceCredential.nullable().optional(),
+  serialNumber: safeText.nullable().optional(),
+  verificationCode: safeText.nullable().optional(),
+  channels: z.number().int().min(1).max(9999).nullable().optional(),
 });
 
 export const NVRController = {

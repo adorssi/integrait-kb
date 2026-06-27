@@ -23,6 +23,9 @@ export const NVRRepository = {
     port?: number;
     brand?: string;
     model?: string;
+    serialNumber?: string;
+    verificationCode?: string;
+    channels?: number;
     notes?: string;
     encryptedUsername?: string;
     encryptedPassword?: string;
@@ -38,6 +41,9 @@ export const NVRRepository = {
       port?: number | null;
       brand?: string | null;
       model?: string | null;
+      serialNumber?: string | null;
+      verificationCode?: string | null;
+      channels?: number | null;
       notes?: string | null;
       encryptedUsername?: string | null;
       encryptedPassword?: string | null;

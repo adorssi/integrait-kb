@@ -5,7 +5,10 @@ export const NVRService = {
   async list(clientId: string) {
     const nvrs = await NVRRepository.findByClient(clientId);
     // Las credenciales nunca se incluyen en el listado
-    return nvrs.map(({ encryptedUsername, encryptedPassword, ...nvr }) => nvr);
+    return nvrs.map(({ encryptedUsername, encryptedPassword, ...nvr }) => ({
+      ...nvr,
+      hasCredentials: !!(encryptedUsername || encryptedPassword),
+    }));
   },
 
   async create(
@@ -16,6 +19,9 @@ export const NVRService = {
       port?: number;
       brand?: string;
       model?: string;
+      serialNumber?: string;
+      verificationCode?: string;
+      channels?: number;
       notes?: string;
       username?: string;
       password?: string;
@@ -38,6 +44,9 @@ export const NVRService = {
       port?: number | null;
       brand?: string | null;
       model?: string | null;
+      serialNumber?: string | null;
+      verificationCode?: string | null;
+      channels?: number | null;
       notes?: string | null;
       username?: string | null;
       password?: string | null;

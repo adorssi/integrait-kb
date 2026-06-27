@@ -8,10 +8,15 @@ import { NVRController } from '../controllers/nvr-controller';
 import { CameraController } from '../controllers/camera-controller';
 import { BranchController } from '../controllers/branch-controller';
 import { ImportController } from '../controllers/import-controller';
+import { ClientCredentialController } from '../controllers/client-credential-controller';
+import { ClientWifiController } from '../controllers/client-wifi-controller';
+import { ClientDocumentController } from '../controllers/client-document-controller';
 import { authenticate, requireRole } from '../middlewares/auth';
+import { buildUploadMiddleware } from '../utils/file-storage';
 import { Role } from '../models/types';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const docUpload = buildUploadMiddleware('clients');
 
 const router = Router();
 
@@ -51,8 +56,8 @@ router.put('/:clientId/branches/:branchId/segments/:segmentId', BranchController
 router.delete('/:clientId/branches/:branchId/segments/:segmentId', BranchController.deleteSegment);
 
 // Importación masiva via Excel
-router.post('/:clientId/equipment/import', upload.single('file'), ImportController.importEquipment);
-router.post('/:clientId/cameras/import', upload.single('file'), ImportController.importCameras);
+router.post('/:clientId/equipment/import', importUpload.single('file'), ImportController.importEquipment);
+router.post('/:clientId/cameras/import', importUpload.single('file'), ImportController.importCameras);
 
 // Backups
 router.get('/:id/backups', BackupController.listByClient);
@@ -71,5 +76,25 @@ router.post('/:clientId/cameras', CameraController.create);
 router.put('/:clientId/cameras/:cameraId', CameraController.update);
 router.get('/:clientId/cameras/:cameraId/credentials', CameraController.getCredentials);
 router.patch('/:clientId/cameras/:cameraId/deactivate', requireRole(Role.ADMIN), CameraController.deactivate);
+
+// Credenciales genéricas del cliente
+router.get('/:clientId/credentials', ClientCredentialController.list);
+router.post('/:clientId/credentials', ClientCredentialController.create);
+router.get('/:clientId/credentials/:credId/password', ClientCredentialController.getPassword);
+router.put('/:clientId/credentials/:credId', ClientCredentialController.update);
+router.delete('/:clientId/credentials/:credId', ClientCredentialController.delete);
+
+// WiFi del cliente
+router.get('/:clientId/wifi', ClientWifiController.list);
+router.post('/:clientId/wifi', ClientWifiController.create);
+router.get('/:clientId/wifi/:wifiId/password', ClientWifiController.getPassword);
+router.put('/:clientId/wifi/:wifiId', ClientWifiController.update);
+router.delete('/:clientId/wifi/:wifiId', ClientWifiController.delete);
+
+// Documentos del cliente
+router.get('/:clientId/documents', ClientDocumentController.list);
+router.post('/:clientId/documents', docUpload.single('file'), ClientDocumentController.upload);
+router.get('/:clientId/documents/:docId/download', ClientDocumentController.download);
+router.delete('/:clientId/documents/:docId', ClientDocumentController.delete);
 
 export default router;

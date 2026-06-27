@@ -60,7 +60,11 @@ export interface NVR {
   port?: number | null;
   brand?: string | null;
   model?: string | null;
+  serialNumber?: string | null;
+  verificationCode?: string | null;
+  channels?: number | null;
   notes?: string | null;
+  hasCredentials?: boolean;
   active: boolean;
   cameras: Camera[];
   createdAt: string;
@@ -137,6 +141,15 @@ export interface Solution {
   createdAt: string;
 }
 
+export interface IncidentAttachment {
+  id: string;
+  incidentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface Incident {
   id: string;
   title: string;
@@ -180,6 +193,37 @@ export interface Branch {
   updatedAt: string;
 }
 
+export interface ClientCredential {
+  id: string;
+  clientId: string;
+  service: string;
+  username?: string | null;
+  hasPassword: boolean;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientWifi {
+  id: string;
+  clientId: string;
+  ssid: string;
+  hasPassword: boolean;
+  location?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientDocument {
+  id: string;
+  clientId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface ImportResult {
   imported: number;
   errors: { row: number; message: string }[];
@@ -190,7 +234,7 @@ export interface ClientDetail extends Client {
   contacts: Contact[];
   incidents: Incident[];
   nvrs?: NVR[];
-  branches?: Branch[];
+  branches: Branch[];
 }
 
 // Respuestas API

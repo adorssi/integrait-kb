@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Pencil, Trash2, Phone, Mail, AlertCircle, HardDrive, Download, Upload, Key, Eye, EyeOff, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Phone, Mail, AlertCircle, HardDrive, Download, Upload, Key, Eye, EyeOff, Loader2, Search, Wifi, FileText, Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import { clientsService } from '@/services/clients.service';
 import { backupsService } from '@/services/backups.service';
 import { branchService } from '@/services/branch.service';
 import { authService } from '@/services/auth.service';
-import { Equipment, Contact, Branch } from '@/types';
+import { Equipment, Contact, Branch, ClientCredential, ClientWifi, ClientDocument } from '@/types';
 import { BackupCalendar } from '@/components/BackupCalendar';
 import { CamerasTab } from '@/components/CamerasTab';
 import { BranchesTab } from '@/components/BranchesTab';
@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { StatusBadge, PriorityBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { formatDate, formatDateTime, whatsappLink } from '@/lib/utils';
+import { formatDate, formatDateTime, formatBytes, whatsappLink, downloadAuthFile } from '@/lib/utils';
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -37,6 +37,7 @@ const equipmentSchema = z.object({
   location: z.string().optional(),
   os: z.string().optional(),
   notes: z.string().optional(),
+  branchId: z.string().optional(),
   hasCredentials: z.boolean().optional(),
   username: z.string().optional(),
   password: z.string().optional(),
@@ -50,7 +51,7 @@ const contactSchema = z.object({
 });
 type ContactForm = z.infer<typeof contactSchema>;
 
-type Tab = 'info' | 'equipment' | 'contacts' | 'incidents' | 'cameras' | 'backups' | 'branches';
+type Tab = 'info' | 'equipment' | 'contacts' | 'incidents' | 'cameras' | 'backups' | 'branches' | 'credentials' | 'documents';
 
 const clientInfoSchema = z.object({
   name: z.string().min(1, 'Nombre requerido'),
@@ -193,6 +194,29 @@ export function ClientDetailPage() {
   const [creatingContact, setCreatingContact] = useState(false);
   const [deleteContact, setDeleteContact] = useState<Contact | null>(null);
 
+  // Credentials tab state
+  const [credSearch, setCredSearch] = useState('');
+  const [wifiSearch, setWifiSearch] = useState('');
+  const [editCred, setEditCred] = useState<ClientCredential | null>(null);
+  const [creatingCred, setCreatingCred] = useState(false);
+  const [deleteCred, setDeleteCred] = useState<ClientCredential | null>(null);
+  const [editWifi, setEditWifi] = useState<ClientWifi | null>(null);
+  const [creatingWifi, setCreatingWifi] = useState(false);
+  const [deleteWifi, setDeleteWifi] = useState<ClientWifi | null>(null);
+  const [revealCredId, setRevealCredId] = useState<string | null>(null);
+  const [revealedCredPwd, setRevealedCredPwd] = useState<string | null>(null);
+  const [revealWifiId, setRevealWifiId] = useState<string | null>(null);
+  const [revealedWifiPwd, setRevealedWifiPwd] = useState<string | null>(null);
+  const [verifyCredOpen, setVerifyCredOpen] = useState<{ type: 'cred' | 'wifi'; id: string } | null>(null);
+  const [verifyCredPwd, setVerifyCredPwd] = useState('');
+  const [verifyCredError, setVerifyCredError] = useState('');
+  const [verifyingCred, setVerifyingCred] = useState(false);
+
+  // Documents tab state
+  const [docSearch, setDocSearch] = useState('');
+  const [deleteDoc, setDeleteDoc] = useState<ClientDocument | null>(null);
+  const docUploadRef = useRef<HTMLInputElement>(null);
+
   const { data: client, isLoading } = useQuery({
     queryKey: ['client-detail', id],
     queryFn: () => clientsService.getDetail(id!),
@@ -204,6 +228,107 @@ export function ClientDetailPage() {
     queryFn: () => backupsService.latestByClient(id!),
     enabled: !!id && !!client?.hasBackups,
   });
+
+  const { data: credentials = [] } = useQuery({
+    queryKey: ['client-credentials', id],
+    queryFn: () => clientsService.listCredentials(id!),
+    enabled: !!id && tab === 'credentials',
+  });
+
+  const { data: wifiNetworks = [] } = useQuery({
+    queryKey: ['client-wifi', id],
+    queryFn: () => clientsService.listWifi(id!),
+    enabled: !!id && tab === 'credentials',
+  });
+
+  const { data: documents = [] } = useQuery({
+    queryKey: ['client-documents', id],
+    queryFn: () => clientsService.listDocuments(id!),
+    enabled: !!id && tab === 'documents',
+  });
+
+  const invalidateCreds = () => qc.invalidateQueries({ queryKey: ['client-credentials', id] });
+  const invalidateWifi = () => qc.invalidateQueries({ queryKey: ['client-wifi', id] });
+  const invalidateDocs = () => qc.invalidateQueries({ queryKey: ['client-documents', id] });
+
+  const credSchema = z.object({
+    service: z.string().min(1, 'Servicio requerido'),
+    username: z.string().optional(),
+    password: z.string().optional(),
+    notes: z.string().optional(),
+  });
+  type CredForm = z.infer<typeof credSchema>;
+
+  const wifiSchema = z.object({
+    ssid: z.string().min(1, 'SSID requerido'),
+    password: z.string().optional(),
+    location: z.string().optional(),
+    notes: z.string().optional(),
+  });
+  type WifiForm = z.infer<typeof wifiSchema>;
+
+  const credForm = useForm<CredForm>({ resolver: zodResolver(credSchema) });
+  const wifiForm = useForm<WifiForm>({ resolver: zodResolver(wifiSchema) });
+
+  const createCredMutation = useMutation({
+    mutationFn: (d: CredForm) => clientsService.createCredential(id!, d),
+    onSuccess: () => { invalidateCreds(); setCreatingCred(false); credForm.reset(); },
+  });
+  const updateCredMutation = useMutation({
+    mutationFn: (d: CredForm) => clientsService.updateCredential(id!, editCred!.id, d),
+    onSuccess: () => { invalidateCreds(); setEditCred(null); credForm.reset(); },
+  });
+  const deleteCredMutation = useMutation({
+    mutationFn: (credId: string) => clientsService.deleteCredential(id!, credId),
+    onSuccess: () => { invalidateCreds(); setDeleteCred(null); },
+  });
+
+  const createWifiMutation = useMutation({
+    mutationFn: (d: WifiForm) => clientsService.createWifi(id!, d),
+    onSuccess: () => { invalidateWifi(); setCreatingWifi(false); wifiForm.reset(); },
+  });
+  const updateWifiMutation = useMutation({
+    mutationFn: (d: WifiForm) => clientsService.updateWifi(id!, editWifi!.id, d),
+    onSuccess: () => { invalidateWifi(); setEditWifi(null); wifiForm.reset(); },
+  });
+  const deleteWifiMutation = useMutation({
+    mutationFn: (wifiId: string) => clientsService.deleteWifi(id!, wifiId),
+    onSuccess: () => { invalidateWifi(); setDeleteWifi(null); },
+  });
+
+  const uploadDocMutation = useMutation({
+    mutationFn: (file: File) => clientsService.uploadDocument(id!, file),
+    onSuccess: () => invalidateDocs(),
+  });
+  const deleteDocMutation = useMutation({
+    mutationFn: (docId: string) => clientsService.deleteDocument(id!, docId),
+    onSuccess: () => { invalidateDocs(); setDeleteDoc(null); },
+  });
+
+  const handleVerifyCred = async () => {
+    if (!verifyCredOpen) return;
+    setVerifyingCred(true); setVerifyCredError('');
+    try {
+      await authService.verifyPassword(verifyCredPwd);
+      const { type, id: itemId } = verifyCredOpen;
+      setVerifyCredOpen(null); setVerifyCredPwd('');
+      if (type === 'cred') {
+        const { password } = await clientsService.getCredentialPassword(id!, itemId);
+        setRevealCredId(itemId); setRevealedCredPwd(password);
+      } else {
+        const { password } = await clientsService.getWifiPassword(id!, itemId);
+        setRevealWifiId(itemId); setRevealedWifiPwd(password);
+      }
+    } catch {
+      setVerifyCredError('Contraseña incorrecta. Intentá de nuevo.');
+    } finally { setVerifyingCred(false); }
+  };
+
+  const handleDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadDocMutation.mutate(file);
+    e.target.value = '';
+  };
 
   // Info edit form
   const infoForm = useForm<ClientInfoForm>({ resolver: zodResolver(clientInfoSchema) });
@@ -254,7 +379,7 @@ export function ClientDetailPage() {
   const showEqCredFields = eqForm.watch('hasCredentials');
 
   const openCreateEq = () => {
-    eqForm.reset({ name: '', ip: '', brand: '', model: '', location: '', os: '', notes: '', hasCredentials: false, username: '', password: '' });
+    eqForm.reset({ name: '', ip: '', brand: '', model: '', location: '', os: '', notes: '', branchId: '', hasCredentials: false, username: '', password: '' });
     setCreatingEquipment(true);
   };
   const openEditEq = (eq: Equipment) => {
@@ -262,6 +387,7 @@ export function ClientDetailPage() {
     eqForm.reset({
       name: eq.name, ip: eq.ip ?? '', brand: eq.brand ?? '', model: eq.model ?? '',
       location: eq.location ?? '', os: eq.os ?? '', notes: eq.notes ?? '',
+      branchId: eq.branchId ?? '',
       hasCredentials: eq.hasCredentials, username: '', password: '',
     });
   };
@@ -271,6 +397,7 @@ export function ClientDetailPage() {
     mutationFn: (d: EquipmentForm) => clientsService.createEquipment(id!, {
       name: d.name, ip: d.ip, brand: d.brand, model: d.model, location: d.location,
       os: d.os, notes: d.notes,
+      branchId: d.branchId || null,
       ...(d.hasCredentials ? { username: d.username, password: d.password } : {}),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-detail', id] }); closeEqDialog(); },
@@ -280,6 +407,7 @@ export function ClientDetailPage() {
     mutationFn: (d: EquipmentForm) => clientsService.updateEquipment(id!, editEquipment!.id, {
       name: d.name, ip: d.ip, brand: d.brand, model: d.model, location: d.location,
       os: d.os, notes: d.notes,
+      branchId: d.branchId || null,
       // Si el checkbox está desactivado, borra credenciales. Si está activo y hay valores, actualiza.
       username: d.hasCredentials ? (d.username || undefined) : null,
       password: d.hasCredentials ? (d.password || undefined) : null,
@@ -342,6 +470,8 @@ export function ClientDetailPage() {
     { key: 'equipment', label: `Equipos (${allEquipment.length})` },
     { key: 'contacts', label: `Funcionarios (${client.contacts?.length ?? 0})` },
     { key: 'incidents', label: `Incidentes (${client.incidents?.length ?? 0})` },
+    { key: 'credentials', label: 'Credenciales' },
+    { key: 'documents', label: 'Documentos' },
     ...(client.hasBranches ? [{ key: 'branches' as Tab, label: 'Sucursales' }] : []),
     ...(client.hasCameras ? [{ key: 'cameras' as Tab, label: 'Cámaras' }] : []),
     ...(client.hasBackups ? [{
@@ -464,7 +594,7 @@ export function ClientDetailPage() {
       )}
 
       {/* Tab: Sucursales */}
-      {tab === 'branches' && client.hasBranches && <BranchesTab clientId={client.id} />}
+      {tab === 'branches' && client.hasBranches && <BranchesTab clientId={client.id} equipment={allEquipment} />}
 
       {/* Tab: Equipos */}
       {tab === 'equipment' && (
@@ -656,6 +786,157 @@ export function ClientDetailPage() {
       {/* Tab: Backups */}
       {tab === 'backups' && client.hasBackups && <BackupCalendar clientId={client.id} />}
 
+      {/* Tab: Credenciales (cuentas + WiFi) */}
+      {tab === 'credentials' && (
+        <div className="space-y-8">
+          {/* Sección: Cuentas */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" />Cuentas</h3>
+              <Button size="sm" onClick={() => { credForm.reset(); setCreatingCred(true); }}><Plus className="h-4 w-4" />Agregar cuenta</Button>
+            </div>
+            <div className="relative max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" placeholder="Buscar servicio..." className="pl-9" value={credSearch} onChange={e => setCredSearch(e.target.value)} />
+            </div>
+            {credentials.filter(c => !credSearch || c.service.toLowerCase().includes(credSearch.toLowerCase()) || (c.username ?? '').toLowerCase().includes(credSearch.toLowerCase())).length === 0 ? (
+              <EmptyState icon={Lock} title="Sin cuentas" description="Agregá credenciales de servicios externos (Dropbox, Microsoft 365, etc.)" />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {credentials.filter(c => !credSearch || c.service.toLowerCase().includes(credSearch.toLowerCase()) || (c.username ?? '').toLowerCase().includes(credSearch.toLowerCase())).map(cred => (
+                  <Card key={cred.id}>
+                    <CardContent className="pt-4 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-sm">{cred.service}</p>
+                        <div className="flex gap-1 shrink-0">
+                          {cred.hasPassword && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Ver contraseña"
+                              onClick={() => { setRevealCredId(null); setRevealedCredPwd(null); setVerifyCredPwd(''); setVerifyCredError(''); setVerifyCredOpen({ type: 'cred', id: cred.id }); }}>
+                              <Key className="h-3 w-3" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditCred(cred); credForm.reset({ service: cred.service, username: cred.username ?? '', notes: cred.notes ?? '' }); }}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteCred(cred)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      {cred.username && <p className="text-xs text-muted-foreground">Usuario: <span className="font-mono text-foreground">{cred.username}</span></p>}
+                      {revealCredId === cred.id && revealedCredPwd !== null && (
+                        <p className="text-xs text-muted-foreground">Contraseña: <span className="font-mono text-foreground">{revealedCredPwd || '—'}</span>
+                          <button type="button" className="ml-2 text-xs underline text-muted-foreground" onClick={() => { setRevealCredId(null); setRevealedCredPwd(null); }}>ocultar</button>
+                        </p>
+                      )}
+                      {cred.notes && <p className="text-xs text-muted-foreground italic">{cred.notes}</p>}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sección: WiFi */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><Wifi className="h-3.5 w-3.5" />Redes WiFi</h3>
+              <Button size="sm" onClick={() => { wifiForm.reset(); setCreatingWifi(true); }}><Plus className="h-4 w-4" />Agregar WiFi</Button>
+            </div>
+            <div className="relative max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" placeholder="Buscar SSID..." className="pl-9" value={wifiSearch} onChange={e => setWifiSearch(e.target.value)} />
+            </div>
+            {wifiNetworks.filter(w => !wifiSearch || w.ssid.toLowerCase().includes(wifiSearch.toLowerCase()) || (w.location ?? '').toLowerCase().includes(wifiSearch.toLowerCase())).length === 0 ? (
+              <EmptyState icon={Wifi} title="Sin redes WiFi" description="Guardá SSIDs y contraseñas de las redes del cliente" />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {wifiNetworks.filter(w => !wifiSearch || w.ssid.toLowerCase().includes(wifiSearch.toLowerCase()) || (w.location ?? '').toLowerCase().includes(wifiSearch.toLowerCase())).map(wifi => (
+                  <Card key={wifi.id}>
+                    <CardContent className="pt-4 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-sm font-mono">{wifi.ssid}</p>
+                        <div className="flex gap-1 shrink-0">
+                          {wifi.hasPassword && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Ver contraseña"
+                              onClick={() => { setRevealWifiId(null); setRevealedWifiPwd(null); setVerifyCredPwd(''); setVerifyCredError(''); setVerifyCredOpen({ type: 'wifi', id: wifi.id }); }}>
+                              <Key className="h-3 w-3" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditWifi(wifi); wifiForm.reset({ ssid: wifi.ssid, location: wifi.location ?? '', notes: wifi.notes ?? '' }); }}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteWifi(wifi)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      {wifi.location && <p className="text-xs text-muted-foreground">{wifi.location}</p>}
+                      {revealWifiId === wifi.id && revealedWifiPwd !== null && (
+                        <p className="text-xs text-muted-foreground">Contraseña: <span className="font-mono text-foreground">{revealedWifiPwd || '—'}</span>
+                          <button type="button" className="ml-2 text-xs underline text-muted-foreground" onClick={() => { setRevealWifiId(null); setRevealedWifiPwd(null); }}>ocultar</button>
+                        </p>
+                      )}
+                      {wifi.notes && <p className="text-xs text-muted-foreground italic">{wifi.notes}</p>}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Documentos */}
+      {tab === 'documents' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="relative max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" placeholder="Buscar documento..." className="pl-9" value={docSearch} onChange={e => setDocSearch(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2">
+              {uploadDocMutation.isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              <Button size="sm" onClick={() => docUploadRef.current?.click()} disabled={uploadDocMutation.isPending}>
+                <Upload className="h-4 w-4" />Subir documento
+              </Button>
+              <input ref={docUploadRef} type="file" className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.webp"
+                onChange={handleDocUpload} />
+            </div>
+          </div>
+
+          {documents.filter(d => !docSearch || d.filename.toLowerCase().includes(docSearch.toLowerCase())).length === 0 ? (
+            <EmptyState icon={FileText} title="Sin documentos" description="Subí planos, cotizaciones, PDFs de licencias y otros archivos del cliente" />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {documents.filter(d => !docSearch || d.filename.toLowerCase().includes(docSearch.toLowerCase())).map(doc => (
+                <Card key={doc.id}>
+                  <CardContent className="pt-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <p className="text-sm font-medium truncate">{doc.filename}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Descargar"
+                          onClick={() => { void downloadAuthFile(clientsService.getDocumentDownloadUrl(id!, doc.id), doc.filename); }}>
+                          <Download className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteDoc(doc)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{formatBytes(doc.size)} · {formatDate(doc.uploadedAt)}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Dialogs Equipos ── */}
       <Dialog open={creatingEquipment || !!editEquipment} onOpenChange={closeEqDialog}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -672,6 +953,18 @@ export function ClientDetailPage() {
               <div className="space-y-1"><Label>IP</Label><Input {...eqForm.register('ip')} placeholder="192.168.1.10" /></div>
               <div className="space-y-1"><Label>Sistema operativo</Label><Input {...eqForm.register('os')} placeholder="Ubuntu 22.04" /></div>
               <div className="col-span-2 space-y-1"><Label>Ubicación</Label><Input {...eqForm.register('location')} placeholder="Sala de servidores — Rack 3" /></div>
+              {branches.length > 0 && (
+                <div className="col-span-2 space-y-1">
+                  <Label>Sucursal</Label>
+                  <Select value={eqForm.watch('branchId') ?? ''} onValueChange={v => eqForm.setValue('branchId', v === 'none' ? '' : v)}>
+                    <SelectTrigger className="bg-background"><SelectValue placeholder="Sin sucursal" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin sucursal</SelectItem>
+                      {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="col-span-2 space-y-1">
                 <Label>Notas</Label>
                 <Input {...eqForm.register('notes')} placeholder="Texto libre sobre el equipo..." />
@@ -737,6 +1030,79 @@ export function ClientDetailPage() {
         onConfirm={() => deleteContact && deleteCtMutation.mutate(deleteContact.id)}
         title="Eliminar funcionario" description={`¿Eliminar a "${deleteContact?.name}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" loading={deleteCtMutation.isPending} />
+
+      {/* ── Dialogs Credenciales ── */}
+      <Dialog open={creatingCred || !!editCred} onOpenChange={open => { if (!open) { setCreatingCred(false); setEditCred(null); credForm.reset(); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editCred ? 'Editar cuenta' : 'Nueva cuenta'}</DialogTitle></DialogHeader>
+          <form onSubmit={credForm.handleSubmit(d => editCred ? updateCredMutation.mutate(d) : createCredMutation.mutate(d))} className="space-y-3">
+            <div className="space-y-1"><Label>Servicio *</Label><Input {...credForm.register('service')} placeholder="Dropbox, Microsoft 365, Google Workspace..." />{credForm.formState.errors.service && <p className="text-xs text-destructive">{credForm.formState.errors.service.message}</p>}</div>
+            <div className="space-y-1"><Label>Usuario</Label><Input {...credForm.register('username')} placeholder="usuario@empresa.com" autoComplete="off" /></div>
+            <div className="space-y-1"><Label>Contraseña</Label><Input {...credForm.register('password')} type="password" autoComplete="new-password" placeholder={editCred ? 'Dejá vacío para mantener la actual' : '••••••••'} /></div>
+            <div className="space-y-1"><Label>Notas</Label><Input {...credForm.register('notes')} placeholder="Plan, vencimiento, observaciones..." /></div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setCreatingCred(false); setEditCred(null); credForm.reset(); }}>Cancelar</Button>
+              <Button type="submit" disabled={createCredMutation.isPending || updateCredMutation.isPending}>Guardar</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog open={!!deleteCred} onClose={() => setDeleteCred(null)}
+        onConfirm={() => deleteCred && deleteCredMutation.mutate(deleteCred.id)}
+        title="Eliminar cuenta" description={`¿Eliminar la cuenta de "${deleteCred?.service}"?`}
+        confirmLabel="Eliminar" loading={deleteCredMutation.isPending} />
+
+      {/* ── Dialogs WiFi ── */}
+      <Dialog open={creatingWifi || !!editWifi} onOpenChange={open => { if (!open) { setCreatingWifi(false); setEditWifi(null); wifiForm.reset(); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editWifi ? 'Editar red WiFi' : 'Nueva red WiFi'}</DialogTitle></DialogHeader>
+          <form onSubmit={wifiForm.handleSubmit(d => editWifi ? updateWifiMutation.mutate(d) : createWifiMutation.mutate(d))} className="space-y-3">
+            <div className="space-y-1"><Label>SSID *</Label><Input {...wifiForm.register('ssid')} placeholder="MiRed-5G" />{wifiForm.formState.errors.ssid && <p className="text-xs text-destructive">{wifiForm.formState.errors.ssid.message}</p>}</div>
+            <div className="space-y-1"><Label>Contraseña</Label><Input {...wifiForm.register('password')} type="password" autoComplete="new-password" placeholder={editWifi ? 'Dejá vacío para mantener la actual' : '••••••••'} /></div>
+            <div className="space-y-1"><Label>Ubicación</Label><Input {...wifiForm.register('location')} placeholder="Oficina principal, Sala de reuniones..." /></div>
+            <div className="space-y-1"><Label>Notas</Label><Input {...wifiForm.register('notes')} /></div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setCreatingWifi(false); setEditWifi(null); wifiForm.reset(); }}>Cancelar</Button>
+              <Button type="submit" disabled={createWifiMutation.isPending || updateWifiMutation.isPending}>Guardar</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog open={!!deleteWifi} onClose={() => setDeleteWifi(null)}
+        onConfirm={() => deleteWifi && deleteWifiMutation.mutate(deleteWifi.id)}
+        title="Eliminar red WiFi" description={`¿Eliminar la red "${deleteWifi?.ssid}"?`}
+        confirmLabel="Eliminar" loading={deleteWifiMutation.isPending} />
+
+      {/* ── Dialog confirmar identidad para credenciales/WiFi ── */}
+      <Dialog open={!!verifyCredOpen} onOpenChange={open => { if (!open) { setVerifyCredOpen(null); setVerifyCredPwd(''); setVerifyCredError(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Confirmar identidad</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Ingresá tu contraseña para ver las credenciales.</p>
+          <form autoComplete="off" onSubmit={e => { e.preventDefault(); if (verifyCredPwd) handleVerifyCred(); }}>
+            <input type="text" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} autoComplete="username" readOnly />
+            <input type="password" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} autoComplete="current-password" readOnly />
+            <div className="space-y-2">
+              <Label>Contraseña</Label>
+              <Input type="password" value={verifyCredPwd} onChange={e => setVerifyCredPwd(e.target.value)} autoComplete="new-password" />
+              {verifyCredError && <p className="text-xs text-destructive">{verifyCredError}</p>}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" size="sm" onClick={() => { setVerifyCredOpen(null); setVerifyCredPwd(''); }}>Cancelar</Button>
+              <Button type="submit" size="sm" disabled={!verifyCredPwd || verifyingCred}>
+                {verifyingCred ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Verificando...</> : 'Confirmar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog confirmar eliminar documento ── */}
+      <ConfirmDialog open={!!deleteDoc} onClose={() => setDeleteDoc(null)}
+        onConfirm={() => deleteDoc && deleteDocMutation.mutate(deleteDoc.id)}
+        title="Eliminar documento" description={`¿Eliminar "${deleteDoc?.filename}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar" loading={deleteDocMutation.isPending} />
 
       {/* ── Dialog edición de información del cliente ── */}
       <Dialog open={editingInfo} onOpenChange={open => !open && setEditingInfo(false)}>

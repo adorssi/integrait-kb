@@ -30,7 +30,7 @@ model Client {
   hasBranches   Boolean     @default(false)
   hasCameras    Boolean     @default(false)
   hasBackups    Boolean     @default(false)
-  active        Boolean     @default(true)
+  active        Boolean            @default(true)
   branches      Branch[]
   incidents     Incident[]
   equipment     Equipment[]
@@ -38,8 +38,11 @@ model Client {
   nvrs          NVR[]
   cameras       Camera[]
   backupJobs    BackupJob[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  credentials   ClientCredential[]
+  wifiNetworks  ClientWifi[]
+  documents     ClientDocument[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 }
 
 model Branch {
@@ -83,6 +86,9 @@ model NVR {
   port              Int?
   brand             String?
   model             String?
+  serialNumber      String?
+  verificationCode  String?
+  channels          Int?
   encryptedUsername String?
   encryptedPassword String?
   notes             String?
@@ -161,22 +167,23 @@ model Contact {
 }
 
 model Incident {
-  id           String         @id @default(uuid())
+  id           String              @id @default(uuid())
   title        String
   description  String
-  status       IncidentStatus @default(OPEN)
-  priority     Priority       @default(MEDIUM)
-  client       Client         @relation(fields: [clientId], references: [id])
+  status       IncidentStatus      @default(OPEN)
+  priority     Priority            @default(MEDIUM)
+  client       Client              @relation(fields: [clientId], references: [id])
   clientId     String
-  assignedTo   Technician?    @relation(fields: [technicianId], references: [id])
+  assignedTo   Technician?         @relation(fields: [technicianId], references: [id])
   technicianId String?
-  equipment    Equipment?     @relation(fields: [equipmentId], references: [id])
+  equipment    Equipment?          @relation(fields: [equipmentId], references: [id])
   equipmentId  String?
   solution     Solution?
   comments     Comment[]
   tags         Tag[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  attachments  IncidentAttachment[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 }
 
 model Comment {
@@ -202,6 +209,52 @@ model Tag {
   id        String     @id @default(uuid())
   name      String     @unique
   incidents Incident[]
+}
+
+model ClientCredential {
+  id                String   @id @default(uuid())
+  client            Client   @relation(fields: [clientId], references: [id])
+  clientId          String
+  service           String
+  username          String?
+  encryptedPassword String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ClientWifi {
+  id                String   @id @default(uuid())
+  client            Client   @relation(fields: [clientId], references: [id])
+  clientId          String
+  ssid              String
+  encryptedPassword String?
+  location          String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ClientDocument {
+  id          String   @id @default(uuid())
+  client      Client   @relation(fields: [clientId], references: [id])
+  clientId    String
+  filename    String
+  mimeType    String
+  size        Int
+  storagePath String
+  uploadedAt  DateTime @default(now())
+}
+
+model IncidentAttachment {
+  id          String   @id @default(uuid())
+  incident    Incident @relation(fields: [incidentId], references: [id])
+  incidentId  String
+  filename    String
+  mimeType    String
+  size        Int
+  storagePath String
+  uploadedAt  DateTime @default(now())
 }
 
 model BackupJob {

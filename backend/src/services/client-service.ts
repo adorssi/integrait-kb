@@ -21,7 +21,14 @@ export const ClientService = {
   async getDetail(id: string) {
     const client = await ClientRepository.findByIdWithDetail(id);
     if (!client) throw new AppError(404, 'Cliente no encontrado');
-    return client;
+
+    // Agrega hasCredentials y elimina campos cifrados de la respuesta de equipment
+    const equipment = client.equipment.map(({ encryptedUsername, encryptedPassword, ...eq }) => ({
+      ...eq,
+      hasCredentials: !!(encryptedUsername || encryptedPassword),
+    }));
+
+    return { ...client, equipment };
   },
 
   async create(data: ICreateClientDTO): Promise<Client> {

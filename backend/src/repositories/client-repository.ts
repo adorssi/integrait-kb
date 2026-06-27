@@ -26,6 +26,11 @@ export const ClientRepository = {
       include: {
         equipment: { where: { active: true }, orderBy: { name: 'asc' } },
         contacts: { orderBy: { name: 'asc' } },
+        branches: {
+          where: { active: true },
+          include: { segments: { where: { active: true }, orderBy: { vlan: 'asc' } } },
+          orderBy: { name: 'asc' },
+        },
         incidents: {
           orderBy: { createdAt: 'desc' },
           take: 20,

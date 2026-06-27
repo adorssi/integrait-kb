@@ -1,5 +1,8 @@
 import { api } from './api';
-import { ApiResponse, Client, ClientDetail, Equipment, Contact } from '@/types';
+import {
+  ApiResponse, Client, ClientDetail, Equipment, Contact,
+  ClientCredential, ClientWifi, ClientDocument,
+} from '@/types';
 
 export const clientsService = {
   async list(search?: string): Promise<Client[]> {
@@ -91,5 +94,76 @@ export const clientsService = {
 
   async deleteContact(clientId: string, contactId: string): Promise<void> {
     await api.delete(`/clients/${clientId}/contacts/${contactId}`);
+  },
+
+  // Credenciales genéricas
+  async listCredentials(clientId: string): Promise<ClientCredential[]> {
+    const { data } = await api.get<ApiResponse<ClientCredential[]>>(`/clients/${clientId}/credentials`);
+    return data.data;
+  },
+
+  async createCredential(clientId: string, payload: { service: string; username?: string; password?: string; notes?: string }): Promise<ClientCredential> {
+    const { data } = await api.post<ApiResponse<ClientCredential>>(`/clients/${clientId}/credentials`, payload);
+    return data.data;
+  },
+
+  async updateCredential(clientId: string, credId: string, payload: { service?: string; username?: string | null; password?: string | null; notes?: string | null }): Promise<ClientCredential> {
+    const { data } = await api.put<ApiResponse<ClientCredential>>(`/clients/${clientId}/credentials/${credId}`, payload);
+    return data.data;
+  },
+
+  async getCredentialPassword(clientId: string, credId: string): Promise<{ password: string | null }> {
+    const { data } = await api.get<ApiResponse<{ password: string | null }>>(`/clients/${clientId}/credentials/${credId}/password`);
+    return data.data;
+  },
+
+  async deleteCredential(clientId: string, credId: string): Promise<void> {
+    await api.delete(`/clients/${clientId}/credentials/${credId}`);
+  },
+
+  // WiFi
+  async listWifi(clientId: string): Promise<ClientWifi[]> {
+    const { data } = await api.get<ApiResponse<ClientWifi[]>>(`/clients/${clientId}/wifi`);
+    return data.data;
+  },
+
+  async createWifi(clientId: string, payload: { ssid: string; password?: string; location?: string; notes?: string }): Promise<ClientWifi> {
+    const { data } = await api.post<ApiResponse<ClientWifi>>(`/clients/${clientId}/wifi`, payload);
+    return data.data;
+  },
+
+  async updateWifi(clientId: string, wifiId: string, payload: { ssid?: string; password?: string | null; location?: string | null; notes?: string | null }): Promise<ClientWifi> {
+    const { data } = await api.put<ApiResponse<ClientWifi>>(`/clients/${clientId}/wifi/${wifiId}`, payload);
+    return data.data;
+  },
+
+  async getWifiPassword(clientId: string, wifiId: string): Promise<{ password: string | null }> {
+    const { data } = await api.get<ApiResponse<{ password: string | null }>>(`/clients/${clientId}/wifi/${wifiId}/password`);
+    return data.data;
+  },
+
+  async deleteWifi(clientId: string, wifiId: string): Promise<void> {
+    await api.delete(`/clients/${clientId}/wifi/${wifiId}`);
+  },
+
+  // Documentos
+  async listDocuments(clientId: string): Promise<ClientDocument[]> {
+    const { data } = await api.get<ApiResponse<ClientDocument[]>>(`/clients/${clientId}/documents`);
+    return data.data;
+  },
+
+  async uploadDocument(clientId: string, file: File): Promise<ClientDocument> {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await api.post<ApiResponse<ClientDocument>>(`/clients/${clientId}/documents`, form);
+    return data.data;
+  },
+
+  async deleteDocument(clientId: string, docId: string): Promise<void> {
+    await api.delete(`/clients/${clientId}/documents/${docId}`);
+  },
+
+  getDocumentDownloadUrl(clientId: string, docId: string): string {
+    return `/api/clients/${clientId}/documents/${docId}/download`;
   },
 };

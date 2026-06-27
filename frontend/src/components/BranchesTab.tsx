@@ -4,9 +4,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  Building2, ChevronDown, ChevronRight, Network, Pencil, Plus, Trash2, Wifi,
+  Building2, ChevronDown, ChevronRight, Monitor, Network, Pencil, Plus, Trash2, Wifi,
 } from 'lucide-react';
-import { Branch, NetworkSegment } from '@/types';
+import { Branch, Equipment, NetworkSegment } from '@/types';
 import { branchService } from '@/services/branch.service';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ const segmentSchema = z.object({
 });
 type SegmentForm = z.infer<typeof segmentSchema>;
 
-export function BranchesTab({ clientId }: { clientId: string }) {
+export function BranchesTab({ clientId, equipment = [] }: { clientId: string; equipment?: Equipment[] }) {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -220,6 +220,33 @@ export function BranchesTab({ clientId }: { clientId: string }) {
                       </tbody>
                     </table>
                   )}
+
+                  {/* Equipos de la sucursal */}
+                  {(() => {
+                    const branchEquipment = equipment.filter(e => e.branchId === branch.id);
+                    return (
+                      <div className="mt-3 border-t pt-3">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">
+                          <Monitor className="h-3.5 w-3.5" />Equipos asignados
+                          <Badge variant="secondary" className="text-xs ml-1">{branchEquipment.length}</Badge>
+                        </div>
+                        {branchEquipment.length === 0 ? (
+                          <p className="text-xs text-muted-foreground pl-1">Sin equipos asignados a esta sucursal</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {branchEquipment.map(eq => (
+                              <div key={eq.id} className="flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs bg-background">
+                                <Monitor className="h-3 w-3 text-muted-foreground" />
+                                <span className="font-medium">{eq.name}</span>
+                                {eq.ip && <span className="font-mono text-muted-foreground">{eq.ip}</span>}
+                                {eq.os && <Badge variant="outline" className="text-xs">{eq.os}</Badge>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </CardContent>
             )}

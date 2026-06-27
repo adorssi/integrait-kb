@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, User, Building2, Tag, Clock, Loader2, Send, Trash2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, User, Building2, Tag, Clock, Loader2, Send, Trash2, MessageSquare, Paperclip, Download, Upload } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { incidentsService } from '@/services/incidents.service';
 import { techniciansService } from '@/services/technicians.service';
-import { IncidentComment, IncidentStatus } from '@/types';
+import { IncidentComment, IncidentAttachment, IncidentStatus } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import { StatusBadge, PriorityBadge } from '@/components/ui/StatusBadge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { formatDateTime, formatMinutes } from '@/lib/utils';
+import { formatDateTime, formatMinutes, formatBytes, downloadAuthFile } from '@/lib/utils';
 
 const solutionSchema = z.object({
   description: z.string().min(20, 'Mínimo 20 caracteres'),
@@ -42,6 +42,8 @@ export function IncidentDetailPage() {
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  const [deleteAttachmentId, setDeleteAttachmentId] = useState<string | null>(null);
+  const attachUploadRef = useRef<HTMLInputElement>(null);
 
   const { data: incident, isLoading } = useQuery({
     queryKey: ['incident', id],
@@ -54,6 +56,28 @@ export function IncidentDetailPage() {
     queryFn: () => incidentsService.listComments(id!),
     enabled: !!id,
   });
+
+  const { data: attachments = [] } = useQuery<IncidentAttachment[]>({
+    queryKey: ['attachments', id],
+    queryFn: () => incidentsService.listAttachments(id!),
+    enabled: !!id,
+  });
+
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: (file: File) => incidentsService.uploadAttachment(id!, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['attachments', id] }),
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: (attachId: string) => incidentsService.deleteAttachment(id!, attachId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['attachments', id] }); setDeleteAttachmentId(null); },
+  });
+
+  const handleAttachUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadAttachmentMutation.mutate(file);
+    e.target.value = '';
+  };
 
   const { data: technicians = [] } = useQuery({
     queryKey: ['technicians'],
@@ -210,6 +234,54 @@ export function IncidentDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Adjuntos */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Paperclip className="h-4 w-4" />
+                  Adjuntos
+                  {attachments.length > 0 && <span className="text-sm font-normal text-muted-foreground">({attachments.length})</span>}
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {uploadAttachmentMutation.isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  <Button size="sm" variant="outline" onClick={() => attachUploadRef.current?.click()} disabled={uploadAttachmentMutation.isPending}>
+                    <Upload className="h-4 w-4" />Subir archivo
+                  </Button>
+                  <input ref={attachUploadRef} type="file" className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.webp"
+                    onChange={handleAttachUpload} />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {attachments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-3">Sin adjuntos aún. Subí imágenes, capturas o PDFs relacionados al incidente.</p>
+              ) : (
+                <div className="space-y-2">
+                  {attachments.map(att => (
+                    <div key={att.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate">{att.filename}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{formatBytes(att.size)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Descargar"
+                          onClick={() => { void downloadAuthFile(incidentsService.getAttachmentDownloadUrl(id!, att.id), att.filename); }}>
+                          <Download className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteAttachmentId(att.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Comentarios */}
           <Card>
@@ -368,6 +440,15 @@ export function IncidentDetailPage() {
         description="¿Eliminar este comentario? Esta acción no se puede deshacer."
         confirmLabel="Eliminar"
         loading={deleteCommentMutation.isPending}
+      />
+      <ConfirmDialog
+        open={!!deleteAttachmentId}
+        onClose={() => setDeleteAttachmentId(null)}
+        onConfirm={() => deleteAttachmentId && deleteAttachmentMutation.mutate(deleteAttachmentId)}
+        title="Eliminar adjunto"
+        description="¿Eliminar este archivo? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        loading={deleteAttachmentMutation.isPending}
       />
     </div>
   );

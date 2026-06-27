@@ -29,3 +29,27 @@ export function whatsappLink(phone: string): string {
   const clean = phone.replace(/\D/g, '');
   return `https://wa.me/${clean}`;
 }
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Descarga un archivo autenticado (con JWT) creando un blob URL temporal
+export async function downloadAuthFile(url: string, filename: string): Promise<void> {
+  const token = localStorage.getItem('token');
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) throw new Error('Error al descargar');
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
+}

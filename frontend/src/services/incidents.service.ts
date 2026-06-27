@@ -1,5 +1,5 @@
 import { api } from './api';
-import { ApiResponse, IncidentComment, Incident, IncidentStatus, Priority, Tag } from '@/types';
+import { ApiResponse, IncidentComment, IncidentAttachment, Incident, IncidentStatus, Priority, Tag } from '@/types';
 
 export interface IncidentFilters {
   clientId?: string;
@@ -67,5 +67,26 @@ export const incidentsService = {
 
   async deleteComment(incidentId: string, commentId: string): Promise<void> {
     await api.delete(`/incidents/${incidentId}/comments/${commentId}`);
+  },
+
+  // Adjuntos
+  async listAttachments(incidentId: string): Promise<IncidentAttachment[]> {
+    const { data } = await api.get<ApiResponse<IncidentAttachment[]>>(`/incidents/${incidentId}/attachments`);
+    return data.data;
+  },
+
+  async uploadAttachment(incidentId: string, file: File): Promise<IncidentAttachment> {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await api.post<ApiResponse<IncidentAttachment>>(`/incidents/${incidentId}/attachments`, form);
+    return data.data;
+  },
+
+  async deleteAttachment(incidentId: string, attachmentId: string): Promise<void> {
+    await api.delete(`/incidents/${incidentId}/attachments/${attachmentId}`);
+  },
+
+  getAttachmentDownloadUrl(incidentId: string, attachmentId: string): string {
+    return `/api/incidents/${incidentId}/attachments/${attachmentId}/download`;
   },
 };
