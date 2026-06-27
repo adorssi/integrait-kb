@@ -12,6 +12,7 @@ const createSchema = z.object({
   address: safeShortText.optional().nullable(),
   notes: safeText.optional().nullable(),
   publicIp: ipAddress.optional().nullable(),
+  dynamicIp: z.boolean().optional(),
   isp: safeShortText.optional().nullable(),
   networkRange: cidrRange.optional().nullable(),
   servicePlan: safeShortText.optional().nullable(),
@@ -23,6 +24,7 @@ const updateSchema = createSchema.partial();
 
 const infrastructureSchema = z.object({
   publicIp: ipAddress.optional().nullable(),
+  dynamicIp: z.boolean().optional(),
   isp: safeShortText.optional().nullable(),
   networkRange: cidrRange.optional().nullable(),
   servicePlan: safeShortText.optional().nullable(),

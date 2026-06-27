@@ -163,4 +163,8 @@ export const BackupService = {
   async clientsWithLastFailure() {
     return BackupRepository.findClientsWithLastFailure();
   },
+
+  async allClientsStatus() {
+    return BackupRepository.findLatestPerClient();
+  },
 };

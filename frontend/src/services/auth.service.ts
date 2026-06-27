@@ -11,4 +11,9 @@ export const authService = {
     const { data } = await api.get<{ data: AuthResponse['technician'] }>('/auth/me');
     return data.data;
   },
+
+  async verifyPassword(password: string): Promise<boolean> {
+    const { data } = await api.post<{ data: { valid: boolean } }>('/auth/verify-password', { password });
+    return data.data.valid;
+  },
 };

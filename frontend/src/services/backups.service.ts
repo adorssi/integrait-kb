@@ -6,6 +6,13 @@ export interface LatestBackup {
   occurredAt: string;
 }
 
+export interface ClientBackupStatus {
+  clientId: string;
+  clientName: string;
+  result: 'SUCCESS' | 'WARNING' | 'FAILURE' | null;
+  occurredAt: string | null;
+}
+
 export interface FailedBackupClient {
   clientId: string;
   clientName: string;
@@ -67,6 +74,11 @@ export const backupsService = {
 
   async unmatchedNames(): Promise<string[]> {
     const { data } = await api.get<ApiResponse<string[]>>('/backups/unmatched-names');
+    return data.data;
+  },
+
+  async allClientsStatus(): Promise<ClientBackupStatus[]> {
+    const { data } = await api.get<ApiResponse<ClientBackupStatus[]>>('/backups/all-clients-status');
     return data.data;
   },
 };

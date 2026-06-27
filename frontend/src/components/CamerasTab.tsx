@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { nvrService, NVRForm } from '@/services/nvr.service';
 import { camerasService, CameraForm } from '@/services/cameras.service';
 import { branchService } from '@/services/branch.service';
+import { authService } from '@/services/auth.service';
 import { NVR, Camera } from '@/types';
 import { exportCamerasTemplate, exportCamerasData } from '@/utils/excel';
 import { useAuth } from '@/hooks/useAuth';
@@ -72,6 +73,10 @@ function CredentialsBadge({ clientId, resourceId, type, others }: CredentialsBad
   const [open, setOpen] = useState(false);
   const [propagating, setPropagating] = useState(false);
   const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyPwd, setVerifyPwd] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['credentials', type, resourceId],
@@ -103,8 +108,25 @@ function CredentialsBadge({ clientId, resourceId, type, others }: CredentialsBad
   });
 
   const handleReveal = () => {
-    setOpen(true);
-    refetch();
+    setVerifyPwd('');
+    setVerifyError('');
+    setVerifyOpen(true);
+  };
+
+  const handleVerify = async () => {
+    setVerifying(true);
+    setVerifyError('');
+    try {
+      await authService.verifyPassword(verifyPwd);
+      setVerifyOpen(false);
+      setVerifyPwd('');
+      setOpen(true);
+      refetch();
+    } catch {
+      setVerifyError('Contraseña incorrecta. Intentá de nuevo.');
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const hasCredentials = data && (data.username || data.password);
@@ -123,6 +145,35 @@ function CredentialsBadge({ clientId, resourceId, type, others }: CredentialsBad
       <Button type="button" variant="ghost" size="icon" title="Ver credenciales" onClick={handleReveal}>
         <Key className="h-3.5 w-3.5" />
       </Button>
+
+      {/* Diálogo de verificación de identidad */}
+      <Dialog open={verifyOpen} onOpenChange={(o) => { setVerifyOpen(o); if (!o) setVerifyPwd(''); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirmar identidad</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Ingresá tu contraseña del sistema para ver las credenciales del dispositivo.</p>
+          <div className="space-y-2">
+            <Label>Contraseña</Label>
+            <Input
+              type="password"
+              value={verifyPwd}
+              onChange={e => setVerifyPwd(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && verifyPwd && handleVerify()}
+              autoFocus
+              autoComplete="current-password"
+            />
+            {verifyError && <p className="text-xs text-destructive">{verifyError}</p>}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setVerifyOpen(false)}>Cancelar</Button>
+            <Button type="button" size="sm" disabled={!verifyPwd || verifying} onClick={handleVerify}>
+              {verifying ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Verificando...</> : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPropagating(false); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>

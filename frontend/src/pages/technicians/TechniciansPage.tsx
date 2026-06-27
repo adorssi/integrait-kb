@@ -217,13 +217,13 @@ export function TechniciansPage() {
             </div>
             <div className="space-y-2">
               <Label>{editTarget ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña'}</Label>
-              <Input {...register('password')} type="password" placeholder="••••••••" />
+              <Input {...register('password')} type="password" placeholder="••••••••" autoComplete="new-password" />
               {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
             </div>
             {(!editTarget || watch('password')) && (
               <div className="space-y-2">
                 <Label>{editTarget ? 'Confirmá la nueva contraseña' : 'Confirmá la contraseña'}</Label>
-                <Input {...register('confirmPassword')} type="password" placeholder="••••••••" />
+                <Input {...register('confirmPassword')} type="password" placeholder="••••••••" autoComplete="new-password" />
                 {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
               </div>
             )}

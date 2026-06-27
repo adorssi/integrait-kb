@@ -107,4 +107,30 @@ export const BackupRepository = {
   async countByClient(clientId: string) {
     return prisma.backupJob.count({ where: { clientId } });
   },
+
+  /**
+   * Devuelve todos los clientes activos con el resultado de su backup más reciente.
+   * Clientes sin ningún backup registrado aparecen con result=null.
+   */
+  async findLatestPerClient(): Promise<
+    { clientId: string; clientName: string; result: string | null; occurredAt: Date | null }[]
+  > {
+    return prisma.$queryRaw`
+      SELECT
+        c.id          AS "clientId",
+        c.name        AS "clientName",
+        bj.result     AS "result",
+        bj."occurredAt"
+      FROM "Client" c
+      LEFT JOIN "BackupJob" bj ON bj.id = (
+        SELECT b2.id
+        FROM "BackupJob" b2
+        WHERE b2."clientId" = c.id
+        ORDER BY b2."occurredAt" DESC
+        LIMIT 1
+      )
+      WHERE c.active = true
+      ORDER BY c.name ASC
+    `;
+  },
 };

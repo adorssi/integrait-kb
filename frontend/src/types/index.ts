@@ -38,6 +38,7 @@ export interface Client {
   address?: string | null;
   notes?: string | null;
   publicIp?: string | null;
+  dynamicIp: boolean;
   isp?: string | null;
   networkRange?: string | null;
   contractStart?: string | null;

@@ -53,6 +53,7 @@ const clientInfoSchema = z.object({
   address: z.string().optional(),
   notes: z.string().optional(),
   publicIp: z.string().optional(),
+  dynamicIp: z.boolean().optional(),
   isp: z.string().optional(),
   networkRange: z.string().optional(),
   servicePlan: z.string().optional(),
@@ -104,7 +105,8 @@ export function ClientDetailPage() {
         email: nullify(d.email),
         address: nullify(d.address),
         notes: nullify(d.notes),
-        publicIp: nullify(d.publicIp),
+        publicIp: d.dynamicIp ? null : nullify(d.publicIp),
+        dynamicIp: d.dynamicIp ?? false,
         isp: nullify(d.isp),
         networkRange: nullify(d.networkRange),
         servicePlan: nullify(d.servicePlan),
@@ -122,8 +124,8 @@ export function ClientDetailPage() {
     infoForm.reset({
       name: client.name, city: client.city, rut: client.rut, phone: client.phone,
       email: client.email ?? '', address: client.address ?? '', notes: client.notes ?? '',
-      publicIp: client.publicIp ?? '', isp: client.isp ?? '', networkRange: client.networkRange ?? '',
-      servicePlan: client.servicePlan ?? '',
+      publicIp: client.publicIp ?? '', dynamicIp: client.dynamicIp, isp: client.isp ?? '',
+      networkRange: client.networkRange ?? '', servicePlan: client.servicePlan ?? '',
       contractStart: client.contractStart?.slice(0, 10) ?? '',
       contractEnd: client.contractEnd?.slice(0, 10) ?? '',
     });
@@ -256,12 +258,26 @@ export function ClientDetailPage() {
           </div>
 
           {/* Infraestructura */}
-          {(client.publicIp || client.isp || client.networkRange) && (
+          {(client.publicIp || client.dynamicIp || client.isp || client.networkRange) && (
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Red</h3>
               <div className="grid gap-3 sm:grid-cols-3">
+                {client.dynamicIp ? (
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">IP pública</p>
+                      <p className="font-medium text-sm text-yellow-600 dark:text-yellow-400">Dinámica</p>
+                    </CardContent>
+                  </Card>
+                ) : client.publicIp ? (
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">IP pública</p>
+                      <p className="font-medium font-mono text-sm">{client.publicIp}</p>
+                    </CardContent>
+                  </Card>
+                ) : null}
                 {[
-                  { label: 'IP pública', value: client.publicIp },
                   { label: 'ISP', value: client.isp },
                   { label: 'Rango de red', value: client.networkRange },
                 ].filter(f => f.value).map(({ label, value }) => (
@@ -535,7 +551,14 @@ export function ClientDetailPage() {
             <div className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Red</p>
               <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1"><Label>IP pública</Label><Input {...infoForm.register('publicIp')} placeholder="200.1.2.3" /></div>
+                <div className="space-y-1">
+                  <Label>IP pública</Label>
+                  <Input {...infoForm.register('publicIp')} placeholder="200.1.2.3" disabled={!!infoForm.watch('dynamicIp')} />
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input type="checkbox" {...infoForm.register('dynamicIp')} onChange={e => { infoForm.setValue('dynamicIp', e.target.checked); if (e.target.checked) infoForm.setValue('publicIp', ''); }} className="h-3.5 w-3.5" />
+                    IP dinámica
+                  </label>
+                </div>
                 <div className="space-y-1"><Label>ISP</Label><Input {...infoForm.register('isp')} /></div>
                 <div className="space-y-1"><Label>Rango interno</Label><Input {...infoForm.register('networkRange')} placeholder="192.168.1.0/24" /></div>
               </div>

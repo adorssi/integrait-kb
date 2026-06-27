@@ -19,6 +19,7 @@ model Client {
   notes         String?
   // Infraestructura legado (usada cuando el cliente no tiene sucursales)
   publicIp      String?
+  dynamicIp     Boolean     @default(false)
   isp           String?
   networkRange  String?
   // Contrato

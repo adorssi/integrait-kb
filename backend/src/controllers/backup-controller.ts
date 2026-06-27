@@ -67,6 +67,16 @@ export const BackupController = {
     }
   },
 
+  /** GET /backups/all-clients-status — último backup de cada cliente activo */
+  async allClientsStatus(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const statuses = await BackupService.allClientsStatus();
+      res.json({ data: statuses });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   /** GET /backups/status */
   async status(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
