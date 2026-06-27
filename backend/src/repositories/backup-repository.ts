@@ -129,7 +129,7 @@ export const BackupRepository = {
         ORDER BY b2."occurredAt" DESC
         LIMIT 1
       )
-      WHERE c.active = true
+      WHERE c.active = true AND c."hasBackups" = true
       ORDER BY c.name ASC
     `;
   },

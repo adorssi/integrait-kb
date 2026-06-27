@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { ClientService } from '../services/client-service';
-import { safeName, safeShortText, safeText, safeEmail, ipAddress, cidrRange } from '../utils/validators';
+import { safeName, safeShortText, safeText, safeEmail } from '../utils/validators';
 
 const createSchema = z.object({
   name: safeName,
@@ -11,10 +11,6 @@ const createSchema = z.object({
   email: safeEmail.optional().nullable(),
   address: safeShortText.optional().nullable(),
   notes: safeText.optional().nullable(),
-  publicIp: ipAddress.optional().nullable(),
-  dynamicIp: z.boolean().optional(),
-  isp: safeShortText.optional().nullable(),
-  networkRange: cidrRange.optional().nullable(),
   servicePlan: safeShortText.optional().nullable(),
   contractStart: z.coerce.date().optional().nullable(),
   contractEnd: z.coerce.date().optional().nullable(),
@@ -26,10 +22,6 @@ const createSchema = z.object({
 const updateSchema = createSchema.partial();
 
 const infrastructureSchema = z.object({
-  publicIp: ipAddress.optional().nullable(),
-  dynamicIp: z.boolean().optional(),
-  isp: safeShortText.optional().nullable(),
-  networkRange: cidrRange.optional().nullable(),
   servicePlan: safeShortText.optional().nullable(),
   contractStart: z.coerce.date().optional().nullable(),
   contractEnd: z.coerce.date().optional().nullable(),

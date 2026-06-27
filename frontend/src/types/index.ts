@@ -37,16 +37,27 @@ export interface Client {
   email?: string | null;
   address?: string | null;
   notes?: string | null;
-  publicIp?: string | null;
-  dynamicIp: boolean;
-  isp?: string | null;
-  networkRange?: string | null;
   contractStart?: string | null;
   contractEnd?: string | null;
   servicePlan?: string | null;
   hasBranches: boolean;
   hasCameras: boolean;
   hasBackups: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientInternetService {
+  id: string;
+  clientId: string;
+  label: string;
+  ip?: string | null;
+  dynamicIp: boolean;
+  isp?: string | null;
+  serviceNumber?: string | null;
+  phone?: string | null;
+  titular?: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;

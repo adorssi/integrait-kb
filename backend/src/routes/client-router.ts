@@ -11,6 +11,7 @@ import { ImportController } from '../controllers/import-controller';
 import { ClientCredentialController } from '../controllers/client-credential-controller';
 import { ClientWifiController } from '../controllers/client-wifi-controller';
 import { ClientDocumentController } from '../controllers/client-document-controller';
+import { ClientInternetServiceController } from '../controllers/client-internet-service-controller';
 import { authenticate, requireRole } from '../middlewares/auth';
 import { buildUploadMiddleware } from '../utils/file-storage';
 import { Role } from '../models/types';
@@ -96,5 +97,11 @@ router.get('/:clientId/documents', ClientDocumentController.list);
 router.post('/:clientId/documents', docUpload.single('file'), ClientDocumentController.upload);
 router.get('/:clientId/documents/:docId/download', ClientDocumentController.download);
 router.delete('/:clientId/documents/:docId', ClientDocumentController.delete);
+
+// Servicios de internet del cliente
+router.get('/:clientId/internet-services', ClientInternetServiceController.list);
+router.post('/:clientId/internet-services', ClientInternetServiceController.create);
+router.put('/:clientId/internet-services/:serviceId', ClientInternetServiceController.update);
+router.delete('/:clientId/internet-services/:serviceId', ClientInternetServiceController.remove);
 
 export default router;

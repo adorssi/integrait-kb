@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Pencil, Trash2, Phone, Mail, AlertCircle, HardDrive, Download, Upload, Key, Eye, EyeOff, Loader2, Search, Wifi, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Phone, Mail, AlertCircle, HardDrive, Download, Upload, Key, Eye, EyeOff, Loader2, Search, Wifi, FileText, Lock, Globe } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import { clientsService } from '@/services/clients.service';
 import { backupsService } from '@/services/backups.service';
 import { branchService } from '@/services/branch.service';
 import { authService } from '@/services/auth.service';
-import { Equipment, Contact, Branch, ClientCredential, ClientWifi, ClientDocument } from '@/types';
+import { Equipment, Contact, Branch, ClientCredential, ClientWifi, ClientDocument, ClientInternetService } from '@/types';
 import { BackupCalendar } from '@/components/BackupCalendar';
 import { CamerasTab } from '@/components/CamerasTab';
 import { BranchesTab } from '@/components/BranchesTab';
@@ -61,10 +61,6 @@ const clientInfoSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   address: z.string().optional(),
   notes: z.string().optional(),
-  publicIp: z.string().optional(),
-  dynamicIp: z.boolean().optional(),
-  isp: z.string().optional(),
-  networkRange: z.string().optional(),
   servicePlan: z.string().optional(),
   contractStart: z.string().optional(),
   contractEnd: z.string().optional(),
@@ -73,6 +69,17 @@ const clientInfoSchema = z.object({
   hasBackups: z.boolean().optional(),
 });
 type ClientInfoForm = z.infer<typeof clientInfoSchema>;
+
+const internetServiceSchema = z.object({
+  label: z.string().min(1, 'Etiqueta requerida').default('WAN'),
+  ip: z.string().optional(),
+  dynamicIp: z.boolean().optional().default(false),
+  isp: z.string().optional(),
+  serviceNumber: z.string().optional(),
+  phone: z.string().optional(),
+  titular: z.string().optional(),
+});
+type InternetServiceForm = z.infer<typeof internetServiceSchema>;
 
 // ─── Credential badge for equipment ─────────────────────────────────────────
 
@@ -217,6 +224,11 @@ export function ClientDetailPage() {
   const [deleteDoc, setDeleteDoc] = useState<ClientDocument | null>(null);
   const docUploadRef = useRef<HTMLInputElement>(null);
 
+  // Internet services state
+  const [editInternetSvc, setEditInternetSvc] = useState<ClientInternetService | null>(null);
+  const [creatingInternetSvc, setCreatingInternetSvc] = useState(false);
+  const [deleteInternetSvc, setDeleteInternetSvc] = useState<ClientInternetService | null>(null);
+
   const { data: client, isLoading } = useQuery({
     queryKey: ['client-detail', id],
     queryFn: () => clientsService.getDetail(id!),
@@ -250,6 +262,39 @@ export function ClientDetailPage() {
   const invalidateCreds = () => qc.invalidateQueries({ queryKey: ['client-credentials', id] });
   const invalidateWifi = () => qc.invalidateQueries({ queryKey: ['client-wifi', id] });
   const invalidateDocs = () => qc.invalidateQueries({ queryKey: ['client-documents', id] });
+  const invalidateInternetSvcs = () => qc.invalidateQueries({ queryKey: ['client-internet-services', id] });
+
+  const { data: internetServices = [] } = useQuery<ClientInternetService[]>({
+    queryKey: ['client-internet-services', id],
+    queryFn: () => clientsService.listInternetServices(id!),
+    enabled: !!id && tab === 'info',
+  });
+
+  const isvcForm = useForm<InternetServiceForm>({ resolver: zodResolver(internetServiceSchema) });
+  const showIpField = !isvcForm.watch('dynamicIp');
+
+  const createIsvcMutation = useMutation({
+    mutationFn: (d: InternetServiceForm) => clientsService.createInternetService(id!, { ...d, ip: d.dynamicIp ? null : (d.ip || null) }),
+    onSuccess: () => { invalidateInternetSvcs(); setCreatingInternetSvc(false); isvcForm.reset(); },
+  });
+  const updateIsvcMutation = useMutation({
+    mutationFn: (d: InternetServiceForm) => clientsService.updateInternetService(id!, editInternetSvc!.id, { ...d, ip: d.dynamicIp ? null : (d.ip || null) }),
+    onSuccess: () => { invalidateInternetSvcs(); setEditInternetSvc(null); isvcForm.reset(); },
+  });
+  const deleteIsvcMutation = useMutation({
+    mutationFn: (svcId: string) => clientsService.deleteInternetService(id!, svcId),
+    onSuccess: () => { invalidateInternetSvcs(); setDeleteInternetSvc(null); },
+  });
+
+  const openCreateIsvc = () => {
+    isvcForm.reset({ label: 'WAN', ip: '', dynamicIp: false, isp: '', serviceNumber: '', phone: '', titular: '' });
+    setCreatingInternetSvc(true);
+  };
+  const openEditIsvc = (svc: ClientInternetService) => {
+    setEditInternetSvc(svc);
+    isvcForm.reset({ label: svc.label, ip: svc.ip ?? '', dynamicIp: svc.dynamicIp, isp: svc.isp ?? '', serviceNumber: svc.serviceNumber ?? '', phone: svc.phone ?? '', titular: svc.titular ?? '' });
+  };
+  const closeIsvcDialog = () => { setCreatingInternetSvc(false); setEditInternetSvc(null); isvcForm.reset(); };
 
   const credSchema = z.object({
     service: z.string().min(1, 'Servicio requerido'),
@@ -340,10 +385,6 @@ export function ClientDetailPage() {
         email: nullify(d.email),
         address: nullify(d.address),
         notes: nullify(d.notes),
-        publicIp: d.dynamicIp ? null : nullify(d.publicIp),
-        dynamicIp: d.dynamicIp ?? false,
-        isp: nullify(d.isp),
-        networkRange: nullify(d.networkRange),
         servicePlan: nullify(d.servicePlan),
         contractStart: nullify(d.contractStart),
         contractEnd: nullify(d.contractEnd),
@@ -363,8 +404,7 @@ export function ClientDetailPage() {
     infoForm.reset({
       name: client.name, city: client.city, rut: client.rut, phone: client.phone,
       email: client.email ?? '', address: client.address ?? '', notes: client.notes ?? '',
-      publicIp: client.publicIp ?? '', dynamicIp: client.dynamicIp, isp: client.isp ?? '',
-      networkRange: client.networkRange ?? '', servicePlan: client.servicePlan ?? '',
+      servicePlan: client.servicePlan ?? '',
       contractStart: client.contractStart?.slice(0, 10) ?? '',
       contractEnd: client.contractEnd?.slice(0, 10) ?? '',
       hasBranches: client.hasBranches,
@@ -544,21 +584,47 @@ export function ClientDetailPage() {
             )}
           </div>
 
-          {(client.publicIp || client.dynamicIp || client.isp || client.networkRange) && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Red</h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {client.dynamicIp ? (
-                  <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">IP pública</p><p className="font-medium text-sm text-yellow-600 dark:text-yellow-400">Dinámica</p></CardContent></Card>
-                ) : client.publicIp ? (
-                  <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">IP pública</p><p className="font-medium font-mono text-sm">{client.publicIp}</p></CardContent></Card>
-                ) : null}
-                {[{ label: 'ISP', value: client.isp }, { label: 'Rango de red', value: client.networkRange }].filter(f => f.value).map(({ label, value }) => (
-                  <Card key={label}><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{label}</p><p className="font-medium font-mono text-sm">{value}</p></CardContent></Card>
+          {/* Servicios de Internet */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5" />Servicios de Internet
+              </h3>
+              <Button size="sm" variant="outline" onClick={openCreateIsvc}><Plus className="h-3.5 w-3.5" />Agregar</Button>
+            </div>
+            {internetServices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin servicios de internet registrados.</p>
+            ) : (
+              <div className="space-y-2">
+                {internetServices.map(svc => (
+                  <Card key={svc.id}>
+                    <CardContent className="pt-3 pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-start gap-3 min-w-0">
+                          <Badge variant="secondary" className="shrink-0">{svc.label}</Badge>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-sm">
+                            {svc.dynamicIp ? (
+                              <div><span className="text-xs text-muted-foreground block">IP pública</span><span className="text-yellow-600 dark:text-yellow-400">Dinámica</span></div>
+                            ) : svc.ip ? (
+                              <div><span className="text-xs text-muted-foreground block">IP pública</span><span className="font-mono">{svc.ip}</span></div>
+                            ) : null}
+                            {svc.isp && <div><span className="text-xs text-muted-foreground block">ISP</span>{svc.isp}</div>}
+                            {svc.serviceNumber && <div><span className="text-xs text-muted-foreground block">Nro. de servicio</span>{svc.serviceNumber}</div>}
+                            {svc.phone && <div><span className="text-xs text-muted-foreground block">Teléfono</span>{svc.phone}</div>}
+                            {svc.titular && <div><span className="text-xs text-muted-foreground block">Titular</span>{svc.titular}</div>}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditIsvc(svc)}><Pencil className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteInternetSvc(svc)}><Trash2 className="h-3 w-3" /></Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {(client.servicePlan || client.contractStart || client.contractEnd) && (
             <div>
@@ -1104,6 +1170,54 @@ export function ClientDetailPage() {
         title="Eliminar documento" description={`¿Eliminar "${deleteDoc?.filename}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" loading={deleteDocMutation.isPending} />
 
+      {/* ── Dialog crear/editar servicio de internet ── */}
+      <Dialog open={creatingInternetSvc || !!editInternetSvc} onOpenChange={open => !open && closeIsvcDialog()}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editInternetSvc ? 'Editar servicio de internet' : 'Agregar servicio de internet'}</DialogTitle></DialogHeader>
+          <form onSubmit={isvcForm.handleSubmit(d => editInternetSvc ? updateIsvcMutation.mutate(d) : createIsvcMutation.mutate(d))} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Etiqueta *</Label>
+                <Input {...isvcForm.register('label')} list="isvc-label-list" placeholder="WAN" />
+                <datalist id="isvc-label-list">
+                  <option value="WAN" />
+                  <option value="LAN TO LAN" />
+                  <option value="MPLS" />
+                  <option value="FIBRA" />
+                  <option value="ADSL" />
+                  <option value="4G/LTE" />
+                </datalist>
+                {isvcForm.formState.errors.label && <p className="text-xs text-destructive">{isvcForm.formState.errors.label.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label>IP pública</Label>
+                <Input {...isvcForm.register('ip')} placeholder="200.1.2.3" disabled={!showIpField} />
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" {...isvcForm.register('dynamicIp')} onChange={e => { isvcForm.setValue('dynamicIp', e.target.checked); if (e.target.checked) isvcForm.setValue('ip', ''); }} className="h-3.5 w-3.5" />
+                  IP dinámica
+                </label>
+              </div>
+              <div className="space-y-1"><Label>ISP</Label><Input {...isvcForm.register('isp')} placeholder="Antel, Claro..." /></div>
+              <div className="space-y-1"><Label>Nro. de servicio</Label><Input {...isvcForm.register('serviceNumber')} placeholder="123456789" /></div>
+              <div className="space-y-1"><Label>Teléfono soporte</Label><Input {...isvcForm.register('phone')} placeholder="0800 123 456" /></div>
+              <div className="space-y-1"><Label>Titular del servicio</Label><Input {...isvcForm.register('titular')} /></div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeIsvcDialog}>Cancelar</Button>
+              <Button type="submit" disabled={createIsvcMutation.isPending || updateIsvcMutation.isPending}>
+                {(createIsvcMutation.isPending || updateIsvcMutation.isPending) ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog confirmar eliminar servicio de internet ── */}
+      <ConfirmDialog open={!!deleteInternetSvc} onClose={() => setDeleteInternetSvc(null)}
+        onConfirm={() => deleteInternetSvc && deleteIsvcMutation.mutate(deleteInternetSvc.id)}
+        title="Eliminar servicio de internet" description={`¿Eliminar el servicio "${deleteInternetSvc?.label}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar" loading={deleteIsvcMutation.isPending} />
+
       {/* ── Dialog edición de información del cliente ── */}
       <Dialog open={editingInfo} onOpenChange={open => !open && setEditingInfo(false)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1127,21 +1241,6 @@ export function ClientDetailPage() {
                 <div className="col-span-2 space-y-1"><Label>Notas</Label><Input {...infoForm.register('notes')} /></div>
               </div>
             )}
-            <div className="border-t pt-4 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Red</p>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label>IP pública</Label>
-                  <Input {...infoForm.register('publicIp')} placeholder="200.1.2.3" disabled={!!infoForm.watch('dynamicIp')} />
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                    <input type="checkbox" {...infoForm.register('dynamicIp')} onChange={e => { infoForm.setValue('dynamicIp', e.target.checked); if (e.target.checked) infoForm.setValue('publicIp', ''); }} className="h-3.5 w-3.5" />
-                    IP dinámica
-                  </label>
-                </div>
-                <div className="space-y-1"><Label>ISP</Label><Input {...infoForm.register('isp')} /></div>
-                <div className="space-y-1"><Label>Rango interno</Label><Input {...infoForm.register('networkRange')} placeholder="192.168.1.0/24" /></div>
-              </div>
-            </div>
             <div className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato</p>
               <div className="grid grid-cols-3 gap-3">

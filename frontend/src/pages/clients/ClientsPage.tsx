@@ -26,10 +26,6 @@ const clientSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   address: z.string().optional(),
   notes: z.string().optional(),
-  publicIp: z.string().optional(),
-  dynamicIp: z.boolean().optional(),
-  isp: z.string().optional(),
-  networkRange: z.string().optional(),
   servicePlan: z.string().optional(),
   contractStart: z.string().optional(),
   contractEnd: z.string().optional(),
@@ -50,7 +46,7 @@ export function ClientsPage() {
     queryFn: () => clientsService.list(debouncedSearch || undefined),
   });
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<ClientForm>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
   });
 
@@ -70,10 +66,6 @@ export function ClientsPage() {
     email: nullify(d.email),
     address: nullify(d.address),
     notes: nullify(d.notes),
-    publicIp: d.dynamicIp ? null : nullify(d.publicIp),
-    dynamicIp: d.dynamicIp ?? false,
-    isp: nullify(d.isp),
-    networkRange: nullify(d.networkRange),
     servicePlan: nullify(d.servicePlan),
     contractStart: nullify(d.contractStart),
     contractEnd: nullify(d.contractEnd),
@@ -92,8 +84,8 @@ export function ClientsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['clients'] }); closeForm(); },
   });
 
-  const openCreate = () => { reset({ name: '', city: '', rut: '', phone: '', email: '', address: '', notes: '', publicIp: '', dynamicIp: false, isp: '', networkRange: '', servicePlan: '', contractStart: '', contractEnd: '' }); setCreating(true); };
-  const openEdit = (c: Client) => { setEditTarget(c); reset({ name: c.name, city: c.city, rut: c.rut, phone: c.phone, email: c.email ?? '', address: c.address ?? '', notes: c.notes ?? '', publicIp: c.publicIp ?? '', dynamicIp: c.dynamicIp, isp: c.isp ?? '', networkRange: c.networkRange ?? '', servicePlan: c.servicePlan ?? '', contractStart: c.contractStart?.slice(0, 10) ?? '', contractEnd: c.contractEnd?.slice(0, 10) ?? '' }); };
+  const openCreate = () => { reset({ name: '', city: '', rut: '', phone: '', email: '', address: '', notes: '', servicePlan: '', contractStart: '', contractEnd: '' }); setCreating(true); };
+  const openEdit = (c: Client) => { setEditTarget(c); reset({ name: c.name, city: c.city, rut: c.rut, phone: c.phone, email: c.email ?? '', address: c.address ?? '', notes: c.notes ?? '', servicePlan: c.servicePlan ?? '', contractStart: c.contractStart?.slice(0, 10) ?? '', contractEnd: c.contractEnd?.slice(0, 10) ?? '' }); };
   const closeForm = () => { setCreating(false); setEditTarget(null); reset(); };
   const onSubmit = (d: ClientForm) => editTarget ? updateMutation.mutate(d) : createMutation.mutate(d);
   const isOpen = creating || !!editTarget;
@@ -186,23 +178,6 @@ export function ClientsPage() {
               <div className="space-y-1"><Label>Email</Label><Input {...register('email')} type="email" placeholder="contacto@empresa.com" />{errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}</div>
               <div className="col-span-2 space-y-1"><Label>Dirección</Label><Input {...register('address')} placeholder="Av. 18 de Julio 1234" /></div>
               <div className="col-span-2 space-y-1"><Label>Notas</Label><Input {...register('notes')} placeholder="Particularidades, observaciones..." /></div>
-            </div>
-
-            {/* Red */}
-            <div className="border-t pt-4 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Red</p>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label>IP pública</Label>
-                  <Input {...register('publicIp')} placeholder="200.1.2.3" disabled={!!watch('dynamicIp')} />
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                    <input type="checkbox" {...register('dynamicIp')} onChange={e => { setValue('dynamicIp', e.target.checked); if (e.target.checked) setValue('publicIp', ''); }} className="h-3.5 w-3.5" />
-                    IP dinámica
-                  </label>
-                </div>
-                <div className="space-y-1"><Label>ISP</Label><Input {...register('isp')} placeholder="Antel" /></div>
-                <div className="space-y-1"><Label>Rango interno</Label><Input {...register('networkRange')} placeholder="192.168.1.0/24" /></div>
-              </div>
             </div>
 
             {/* Contrato */}

@@ -17,11 +17,6 @@ model Client {
   address       String?
   contact       String?     // campo legacy — reemplazado por Contact
   notes         String?
-  // Infraestructura legado (usada cuando el cliente no tiene sucursales)
-  publicIp      String?
-  dynamicIp     Boolean     @default(false)
-  isp           String?
-  networkRange  String?
   // Contrato
   contractStart DateTime?
   contractEnd   DateTime?
@@ -30,19 +25,36 @@ model Client {
   hasBranches   Boolean     @default(false)
   hasCameras    Boolean     @default(false)
   hasBackups    Boolean     @default(false)
-  active        Boolean            @default(true)
-  branches      Branch[]
-  incidents     Incident[]
-  equipment     Equipment[]
-  contacts      Contact[]
-  nvrs          NVR[]
-  cameras       Camera[]
-  backupJobs    BackupJob[]
-  credentials   ClientCredential[]
-  wifiNetworks  ClientWifi[]
-  documents     ClientDocument[]
+  active               Boolean                @default(true)
+  branches             Branch[]
+  incidents            Incident[]
+  equipment            Equipment[]
+  contacts             Contact[]
+  nvrs                 NVR[]
+  cameras              Camera[]
+  backupJobs           BackupJob[]
+  credentials          ClientCredential[]
+  wifiNetworks         ClientWifi[]
+  documents            ClientDocument[]
+  internetServices     ClientInternetService[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
+}
+
+model ClientInternetService {
+  id            String   @id @default(uuid())
+  client        Client   @relation(fields: [clientId], references: [id])
+  clientId      String
+  label         String   @default("WAN")
+  ip            String?
+  dynamicIp     Boolean  @default(false)
+  isp           String?
+  serviceNumber String?
+  phone         String?
+  titular       String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Branch {

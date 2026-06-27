@@ -1,7 +1,7 @@
 import { api } from './api';
 import {
   ApiResponse, Client, ClientDetail, Equipment, Contact,
-  ClientCredential, ClientWifi, ClientDocument,
+  ClientCredential, ClientWifi, ClientDocument, ClientInternetService,
 } from '@/types';
 
 export const clientsService = {
@@ -31,15 +31,15 @@ export const clientsService = {
   },
 
   async updateInfrastructure(id: string, payload: {
-    publicIp?: string | null;
-    isp?: string | null;
-    networkRange?: string | null;
     servicePlan?: string | null;
     contractStart?: string | null;
     contractEnd?: string | null;
     email?: string | null;
     address?: string | null;
     notes?: string | null;
+    hasBranches?: boolean;
+    hasCameras?: boolean;
+    hasBackups?: boolean;
   }): Promise<Client> {
     const { data } = await api.patch<ApiResponse<Client>>(`/clients/${id}/infrastructure`, payload);
     return data.data;
@@ -165,5 +165,31 @@ export const clientsService = {
 
   getDocumentDownloadUrl(clientId: string, docId: string): string {
     return `/api/clients/${clientId}/documents/${docId}/download`;
+  },
+
+  // Servicios de internet
+  async listInternetServices(clientId: string): Promise<ClientInternetService[]> {
+    const { data } = await api.get<ApiResponse<ClientInternetService[]>>(`/clients/${clientId}/internet-services`);
+    return data.data;
+  },
+
+  async createInternetService(clientId: string, payload: {
+    label?: string; ip?: string | null; dynamicIp?: boolean;
+    isp?: string | null; serviceNumber?: string | null; phone?: string | null; titular?: string | null;
+  }): Promise<ClientInternetService> {
+    const { data } = await api.post<ApiResponse<ClientInternetService>>(`/clients/${clientId}/internet-services`, payload);
+    return data.data;
+  },
+
+  async updateInternetService(clientId: string, serviceId: string, payload: {
+    label?: string; ip?: string | null; dynamicIp?: boolean;
+    isp?: string | null; serviceNumber?: string | null; phone?: string | null; titular?: string | null;
+  }): Promise<ClientInternetService> {
+    const { data } = await api.put<ApiResponse<ClientInternetService>>(`/clients/${clientId}/internet-services/${serviceId}`, payload);
+    return data.data;
+  },
+
+  async deleteInternetService(clientId: string, serviceId: string): Promise<void> {
+    await api.delete(`/clients/${clientId}/internet-services/${serviceId}`);
   },
 };
