@@ -60,6 +60,14 @@ export const BackupRepository = {
     return prisma.backupJob.create({ data });
   },
 
+  async findMostRecentJobDate(): Promise<Date | null> {
+    const job = await prisma.backupJob.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    return job?.createdAt ?? null;
+  },
+
   async findLatestByClient(clientId: string) {
     return prisma.backupJob.findFirst({
       where: { clientId },

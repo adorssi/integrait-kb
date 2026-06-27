@@ -23,7 +23,15 @@ const clientSchema = z.object({
   city: z.string().min(1, 'Ciudad requerida'),
   rut: z.string().min(1, 'RUT requerido'),
   phone: z.string().min(1, 'Teléfono requerido'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  address: z.string().optional(),
   notes: z.string().optional(),
+  publicIp: z.string().optional(),
+  isp: z.string().optional(),
+  networkRange: z.string().optional(),
+  servicePlan: z.string().optional(),
+  contractStart: z.string().optional(),
+  contractEnd: z.string().optional(),
 });
 type ClientForm = z.infer<typeof clientSchema>;
 
@@ -55,18 +63,32 @@ export function ClientsPage() {
     },
   });
 
+  const nullify = (v: string | undefined) => (v === '' ? null : v ?? null);
+  const sanitizeForm = (d: ClientForm) => ({
+    ...d,
+    email: nullify(d.email),
+    address: nullify(d.address),
+    notes: nullify(d.notes),
+    publicIp: nullify(d.publicIp),
+    isp: nullify(d.isp),
+    networkRange: nullify(d.networkRange),
+    servicePlan: nullify(d.servicePlan),
+    contractStart: nullify(d.contractStart),
+    contractEnd: nullify(d.contractEnd),
+  });
+
   const createMutation = useMutation({
-    mutationFn: clientsService.create,
+    mutationFn: (d: ClientForm) => clientsService.create(sanitizeForm(d)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['clients'] }); closeForm(); },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (d: ClientForm) => clientsService.update(editTarget!.id, d),
+    mutationFn: (d: ClientForm) => clientsService.update(editTarget!.id, sanitizeForm(d)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['clients'] }); closeForm(); },
   });
 
-  const openCreate = () => { reset({ name: '', city: '', rut: '', phone: '', notes: '' }); setCreating(true); };
-  const openEdit = (c: Client) => { setEditTarget(c); reset({ name: c.name, city: c.city, rut: c.rut, phone: c.phone, notes: c.notes ?? '' }); };
+  const openCreate = () => { reset({ name: '', city: '', rut: '', phone: '', email: '', address: '', notes: '', publicIp: '', isp: '', networkRange: '', servicePlan: '', contractStart: '', contractEnd: '' }); setCreating(true); };
+  const openEdit = (c: Client) => { setEditTarget(c); reset({ name: c.name, city: c.city, rut: c.rut, phone: c.phone, email: c.email ?? '', address: c.address ?? '', notes: c.notes ?? '', publicIp: c.publicIp ?? '', isp: c.isp ?? '', networkRange: c.networkRange ?? '', servicePlan: c.servicePlan ?? '', contractStart: c.contractStart?.slice(0, 10) ?? '', contractEnd: c.contractEnd?.slice(0, 10) ?? '' }); };
   const closeForm = () => { setCreating(false); setEditTarget(null); reset(); };
   const onSubmit = (d: ClientForm) => editTarget ? updateMutation.mutate(d) : createMutation.mutate(d);
   const isOpen = creating || !!editTarget;
@@ -145,37 +167,42 @@ export function ClientsPage() {
       </Card>
 
       <Dialog open={isOpen} onOpenChange={closeForm}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editTarget ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-2">
-                <Label>Nombre</Label>
-                <Input {...register('name')} placeholder="Empresa S.A." />
-                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Ciudad</Label>
-                <Input {...register('city')} placeholder="Montevideo" />
-                {errors.city && <p className="text-xs text-destructive">{errors.city.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>RUT</Label>
-                <Input {...register('rut')} placeholder="21000000001" />
-                {errors.rut && <p className="text-xs text-destructive">{errors.rut.message}</p>}
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Teléfono</Label>
-                <Input {...register('phone')} placeholder="099 000 000" />
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Notas (opcional)</Label>
-                <Input {...register('notes')} placeholder="Infraestructura, particularidades..." />
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {/* Datos generales */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1"><Label>Nombre *</Label><Input {...register('name')} placeholder="Empresa S.A." />{errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}</div>
+              <div className="space-y-1"><Label>Ciudad *</Label><Input {...register('city')} placeholder="Montevideo" />{errors.city && <p className="text-xs text-destructive">{errors.city.message}</p>}</div>
+              <div className="space-y-1"><Label>RUT *</Label><Input {...register('rut')} placeholder="21000000001" />{errors.rut && <p className="text-xs text-destructive">{errors.rut.message}</p>}</div>
+              <div className="space-y-1"><Label>Teléfono *</Label><Input {...register('phone')} placeholder="099 000 000" />{errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}</div>
+              <div className="space-y-1"><Label>Email</Label><Input {...register('email')} type="email" placeholder="contacto@empresa.com" />{errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}</div>
+              <div className="col-span-2 space-y-1"><Label>Dirección</Label><Input {...register('address')} placeholder="Av. 18 de Julio 1234" /></div>
+              <div className="col-span-2 space-y-1"><Label>Notas</Label><Input {...register('notes')} placeholder="Particularidades, observaciones..." /></div>
+            </div>
+
+            {/* Red */}
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Red</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1"><Label>IP pública</Label><Input {...register('publicIp')} placeholder="200.1.2.3" /></div>
+                <div className="space-y-1"><Label>ISP</Label><Input {...register('isp')} placeholder="Antel" /></div>
+                <div className="space-y-1"><Label>Rango interno</Label><Input {...register('networkRange')} placeholder="192.168.1.0/24" /></div>
               </div>
             </div>
+
+            {/* Contrato */}
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1"><Label>Plan</Label><Input {...register('servicePlan')} placeholder="Soporte 8x5" /></div>
+                <div className="space-y-1"><Label>Inicio</Label><Input {...register('contractStart')} type="date" /></div>
+                <div className="space-y-1"><Label>Vencimiento</Label><Input {...register('contractEnd')} type="date" /></div>
+              </div>
+            </div>
+
             {(createMutation.error || updateMutation.error) && (
               <p className="text-xs text-destructive">Ocurrió un error. Verificá los datos e intentá nuevamente.</p>
             )}

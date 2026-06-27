@@ -8,20 +8,104 @@ datasource db {
 }
 
 model Client {
-  id         String      @id @default(uuid())
-  name       String
-  city       String
-  rut        String      @unique
-  phone      String
-  contact    String?     // campo legacy — reemplazado por Contact
-  notes      String?
-  active     Boolean     @default(true)
-  incidents  Incident[]
-  equipment  Equipment[]
-  contacts   Contact[]
-  backupJobs BackupJob[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id            String      @id @default(uuid())
+  name          String
+  city          String
+  rut           String      @unique
+  phone         String
+  email         String?
+  address       String?
+  contact       String?     // campo legacy — reemplazado por Contact
+  notes         String?
+  // Infraestructura legado (usada cuando el cliente no tiene sucursales)
+  publicIp      String?
+  isp           String?
+  networkRange  String?
+  // Contrato
+  contractStart DateTime?
+  contractEnd   DateTime?
+  servicePlan   String?
+  active        Boolean     @default(true)
+  branches      Branch[]
+  incidents     Incident[]
+  equipment     Equipment[]
+  contacts      Contact[]
+  nvrs          NVR[]
+  cameras       Camera[]
+  backupJobs    BackupJob[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Branch {
+  id          String           @id @default(uuid())
+  client      Client           @relation(fields: [clientId], references: [id])
+  clientId    String
+  name        String
+  address     String?
+  publicIp    String?
+  dynamicIp   Boolean          @default(false)
+  isp         String?
+  active      Boolean          @default(true)
+  segments    NetworkSegment[]
+  nvrs        NVR[]
+  cameras     Camera[]
+  equipment   Equipment[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model NetworkSegment {
+  id          String   @id @default(uuid())
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  branchId    String
+  vlan        Int?
+  networkRange String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model NVR {
+  id                String   @id @default(uuid())
+  client            Client   @relation(fields: [clientId], references: [id])
+  clientId          String
+  branch            Branch?  @relation(fields: [branchId], references: [id])
+  branchId          String?
+  name              String
+  ip                String
+  port              Int?
+  brand             String?
+  model             String?
+  encryptedUsername String?
+  encryptedPassword String?
+  notes             String?
+  active            Boolean  @default(true)
+  cameras           Camera[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Camera {
+  id                String   @id @default(uuid())
+  client            Client   @relation(fields: [clientId], references: [id])
+  clientId          String
+  branch            Branch?  @relation(fields: [branchId], references: [id])
+  branchId          String?
+  nvr               NVR?     @relation(fields: [nvrId], references: [id])
+  nvrId             String?
+  name              String
+  ip                String?
+  channel           Int?
+  location          String?
+  brand             String?
+  model             String?
+  encryptedUsername String?
+  encryptedPassword String?
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Technician {
@@ -48,6 +132,8 @@ model Equipment {
   active    Boolean    @default(true)
   client    Client     @relation(fields: [clientId], references: [id])
   clientId  String
+  branch    Branch?    @relation(fields: [branchId], references: [id])
+  branchId  String?
   incidents Incident[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt

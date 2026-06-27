@@ -70,11 +70,14 @@ export const BackupController = {
   /** GET /backups/status */
   async status(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // lastSyncRanAt: cuándo se ejecutó el sync (no cuándo llegó el último email)
-      const lastSyncRanAt = BackupService.getLastSyncRanAt();
+      // In-memory: cuándo se ejecutó el sync en esta sesión del servidor
+      const inMemory = BackupService.getLastSyncRanAt();
+      // Fallback a DB: createdAt del job más reciente (persiste entre reinicios)
+      const dbFallback = inMemory ? null : await BackupRepository.findMostRecentJobDate();
+      const lastSync = inMemory ?? dbFallback;
       res.json({
         data: {
-          lastSync: lastSyncRanAt?.toISOString() ?? null,
+          lastSync: lastSync?.toISOString() ?? null,
           configured: !!(process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD),
         },
       });

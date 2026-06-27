@@ -7,10 +7,30 @@ const createSchema = z.object({
   city: z.string().min(1, 'Ciudad requerida'),
   rut: z.string().min(1, 'RUT requerido'),
   phone: z.string().min(1, 'Teléfono requerido'),
-  notes: z.string().optional(),
+  email: z.string().email().optional().nullable(),
+  address: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  publicIp: z.string().optional().nullable(),
+  isp: z.string().optional().nullable(),
+  networkRange: z.string().optional().nullable(),
+  servicePlan: z.string().optional().nullable(),
+  contractStart: z.coerce.date().optional().nullable(),
+  contractEnd: z.coerce.date().optional().nullable(),
 });
 
 const updateSchema = createSchema.partial();
+
+const infrastructureSchema = z.object({
+  publicIp: z.string().optional().nullable(),
+  isp: z.string().optional().nullable(),
+  networkRange: z.string().optional().nullable(),
+  servicePlan: z.string().optional().nullable(),
+  contractStart: z.coerce.date().optional().nullable(),
+  contractEnd: z.coerce.date().optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  address: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
 
 const listQuerySchema = z.object({
   search: z.string().optional(),
@@ -58,6 +78,16 @@ export const ClientController = {
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = updateSchema.parse(req.body);
+      const client = await ClientService.update(req.params.id, data);
+      res.json({ data: client });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async updateInfrastructure(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = infrastructureSchema.parse(req.body);
       const client = await ClientService.update(req.params.id, data);
       res.json({ data: client });
     } catch (err) {

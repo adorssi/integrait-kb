@@ -16,11 +16,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirige a login en 401
+// Redirige a login en 401, excepto cuando el propio login falla (no redirigir en bucle)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isLoginEndpoint = error.config?.url?.includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginEndpoint) {
       localStorage.removeItem('auth-storage');
       window.location.href = '/login';
     }

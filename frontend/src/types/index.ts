@@ -33,10 +33,54 @@ export interface Client {
   city: string;
   rut: string;
   phone: string;
+  email?: string | null;
+  address?: string | null;
   notes?: string | null;
+  publicIp?: string | null;
+  isp?: string | null;
+  networkRange?: string | null;
+  contractStart?: string | null;
+  contractEnd?: string | null;
+  servicePlan?: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NVR {
+  id: string;
+  clientId: string;
+  name: string;
+  ip: string;
+  port?: number | null;
+  brand?: string | null;
+  model?: string | null;
+  notes?: string | null;
+  active: boolean;
+  cameras: Camera[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Camera {
+  id: string;
+  clientId: string;
+  nvrId?: string | null;
+  nvr?: { id: string; name: string } | null;
+  name: string;
+  ip?: string | null;
+  channel?: number | null;
+  location?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Credentials {
+  username: string | null;
+  password: string | null;
 }
 
 export interface Equipment {
@@ -103,10 +147,42 @@ export interface Incident {
   updatedAt: string;
 }
 
+export interface NetworkSegment {
+  id: string;
+  branchId: string;
+  vlan?: number | null;
+  networkRange: string;
+  description?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Branch {
+  id: string;
+  clientId: string;
+  name: string;
+  address?: string | null;
+  publicIp?: string | null;
+  dynamicIp: boolean;
+  isp?: string | null;
+  active: boolean;
+  segments: NetworkSegment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportResult {
+  imported: number;
+  errors: { row: number; message: string }[];
+}
+
 export interface ClientDetail extends Client {
   equipment: Equipment[];
   contacts: Contact[];
   incidents: Incident[];
+  nvrs?: NVR[];
+  branches?: Branch[];
 }
 
 // Respuestas API

@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Pencil, Trash2, Phone, Mail, Monitor, AlertCircle, HardDrive, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Phone, Mail, AlertCircle, HardDrive, Download, Upload } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { clientsService } from '@/services/clients.service';
 import { backupsService } from '@/services/backups.service';
+import { branchService } from '@/services/branch.service';
 import { Equipment, Contact } from '@/types';
 import { BackupCalendar } from '@/components/BackupCalendar';
+import { CamerasTab } from '@/components/CamerasTab';
+import { BranchesTab } from '@/components/BranchesTab';
+import { exportEquipmentTemplate, exportEquipmentData } from '@/utils/excel';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +42,24 @@ const contactSchema = z.object({
 });
 type ContactForm = z.infer<typeof contactSchema>;
 
-type Tab = 'info' | 'equipment' | 'contacts' | 'incidents' | 'backups';
+type Tab = 'info' | 'equipment' | 'contacts' | 'incidents' | 'cameras' | 'backups' | 'branches';
+
+const clientInfoSchema = z.object({
+  name: z.string().min(1, 'Nombre requerido'),
+  city: z.string().min(1, 'Ciudad requerida'),
+  rut: z.string().min(1, 'RUT requerido'),
+  phone: z.string().min(1, 'Teléfono requerido'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  address: z.string().optional(),
+  notes: z.string().optional(),
+  publicIp: z.string().optional(),
+  isp: z.string().optional(),
+  networkRange: z.string().optional(),
+  servicePlan: z.string().optional(),
+  contractStart: z.string().optional(),
+  contractEnd: z.string().optional(),
+});
+type ClientInfoForm = z.infer<typeof clientInfoSchema>;
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -46,11 +67,14 @@ export function ClientDetailPage() {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const [tab, setTab] = useState<Tab>('info');
+  const [editingInfo, setEditingInfo] = useState(false);
 
   // Equipment state
   const [editEquipment, setEditEquipment] = useState<Equipment | null>(null);
   const [creatingEquipment, setCreatingEquipment] = useState(false);
   const [deactivateEquipment, setDeactivateEquipment] = useState<Equipment | null>(null);
+  const [eqImportResult, setEqImportResult] = useState<{ imported: number; errors: { row: number; message: string }[] } | null>(null);
+  const eqImportRef = useRef<HTMLInputElement>(null);
 
   // Contact state
   const [editContact, setEditContact] = useState<Contact | null>(null);
@@ -69,6 +93,43 @@ export function ClientDetailPage() {
     enabled: !!id,
   });
 
+  // Info edit form — usa /infrastructure (accessible a todos los roles)
+  const infoForm = useForm<ClientInfoForm>({ resolver: zodResolver(clientInfoSchema) });
+  const updateInfoMutation = useMutation({
+    mutationFn: (d: ClientInfoForm) => {
+      // Convertir strings vacíos a null para que el backend no falle validación de email/opcionales
+      const nullify = (v: string | undefined) => (v === '' ? null : v ?? null);
+      const payload = {
+        ...d,
+        email: nullify(d.email),
+        address: nullify(d.address),
+        notes: nullify(d.notes),
+        publicIp: nullify(d.publicIp),
+        isp: nullify(d.isp),
+        networkRange: nullify(d.networkRange),
+        servicePlan: nullify(d.servicePlan),
+        contractStart: nullify(d.contractStart),
+        contractEnd: nullify(d.contractEnd),
+      };
+      return isAdmin
+        ? clientsService.update(id!, payload)
+        : clientsService.updateInfrastructure(id!, payload);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-detail', id] }); setEditingInfo(false); },
+  });
+  const openInfoEdit = () => {
+    if (!client) return;
+    infoForm.reset({
+      name: client.name, city: client.city, rut: client.rut, phone: client.phone,
+      email: client.email ?? '', address: client.address ?? '', notes: client.notes ?? '',
+      publicIp: client.publicIp ?? '', isp: client.isp ?? '', networkRange: client.networkRange ?? '',
+      servicePlan: client.servicePlan ?? '',
+      contractStart: client.contractStart?.slice(0, 10) ?? '',
+      contractEnd: client.contractEnd?.slice(0, 10) ?? '',
+    });
+    setEditingInfo(true);
+  };
+
   // Equipment forms
   const eqForm = useForm<EquipmentForm>({ resolver: zodResolver(equipmentSchema) });
   const createEqMutation = useMutation({
@@ -83,6 +144,15 @@ export function ClientDetailPage() {
     mutationFn: (eqId: string) => clientsService.deactivateEquipment(id!, eqId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-detail', id] }); setDeactivateEquipment(null); },
   });
+  const importEqMutation = useMutation({
+    mutationFn: (file: File) => branchService.importEquipment(id!, file),
+    onSuccess: (result) => { setEqImportResult(result); qc.invalidateQueries({ queryKey: ['client-detail', id] }); },
+  });
+  const handleEqImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) importEqMutation.mutate(file);
+    e.target.value = '';
+  };
 
   // Contact forms
   const ctForm = useForm<ContactForm>({ resolver: zodResolver(contactSchema) });
@@ -113,6 +183,8 @@ export function ClientDetailPage() {
     { key: 'equipment', label: `Equipos (${client.equipment?.length ?? 0})` },
     { key: 'contacts', label: `Funcionarios (${client.contacts?.length ?? 0})` },
     { key: 'incidents', label: `Incidentes (${client.incidents?.length ?? 0})` },
+    { key: 'branches', label: 'Sucursales' },
+    { key: 'cameras', label: 'Cámaras' },
     {
       key: 'backups',
       label: (
@@ -155,41 +227,122 @@ export function ClientDetailPage() {
 
       {/* Tab: Información */}
       {tab === 'info' && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[
-            { label: 'Nombre', value: client.name },
-            { label: 'Ciudad', value: client.city },
-            { label: 'RUT', value: client.rut },
-            { label: 'Teléfono', value: client.phone },
-            { label: 'Creado', value: formatDate(client.createdAt) },
-            { label: 'Actualizado', value: formatDate(client.updatedAt) },
-          ].map(({ label, value }) => (
-            <Card key={label}>
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="font-medium">{value}</p>
-              </CardContent>
-            </Card>
-          ))}
-          {client.notes && (
-            <Card className="sm:col-span-2">
-              <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Notas</p>
-                <p className="text-sm">{client.notes}</p>
-              </CardContent>
-            </Card>
+        <div className="space-y-4">
+          {/* Datos generales */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              { label: 'Nombre', value: client.name },
+              { label: 'Ciudad', value: client.city },
+              { label: 'RUT', value: client.rut },
+              { label: 'Teléfono', value: client.phone },
+              { label: 'Email', value: client.email },
+              { label: 'Dirección', value: client.address },
+            ].filter(f => f.value).map(({ label, value }) => (
+              <Card key={label}>
+                <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="font-medium">{value}</p>
+                </CardContent>
+              </Card>
+            ))}
+            {client.notes && (
+              <Card className="sm:col-span-2">
+                <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground">Notas</p>
+                  <p className="text-sm">{client.notes}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Infraestructura */}
+          {(client.publicIp || client.isp || client.networkRange) && (
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Red</h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  { label: 'IP pública', value: client.publicIp },
+                  { label: 'ISP', value: client.isp },
+                  { label: 'Rango de red', value: client.networkRange },
+                ].filter(f => f.value).map(({ label, value }) => (
+                  <Card key={label}>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="font-medium font-mono text-sm">{value}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           )}
+
+          {/* Contrato */}
+          {(client.servicePlan || client.contractStart || client.contractEnd) && (
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Contrato</h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  { label: 'Plan', value: client.servicePlan },
+                  { label: 'Inicio', value: client.contractStart ? formatDate(client.contractStart) : null },
+                  { label: 'Vencimiento', value: client.contractEnd ? formatDate(client.contractEnd) : null },
+                ].filter(f => f.value).map(({ label, value }) => (
+                  <Card key={label}>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="font-medium">{value}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button size="sm" variant="outline" onClick={openInfoEdit}>
+              <Pencil className="h-4 w-4" />Editar información
+            </Button>
+          </div>
         </div>
       )}
+
+      {/* Tab: Sucursales */}
+      {tab === 'branches' && <BranchesTab clientId={client.id} />}
 
       {/* Tab: Equipos */}
       {tab === 'equipment' && (
         <div className="space-y-4">
-          {isAdmin && (
-            <div className="flex justify-end">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={() => exportEquipmentTemplate(client.name)}>
+                <Download className="h-4 w-4" />Template Excel
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => exportEquipmentData(client.equipment ?? [], client.name)} disabled={(client.equipment?.length ?? 0) === 0}>
+                <Download className="h-4 w-4" />Exportar datos
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => eqImportRef.current?.click()} disabled={importEqMutation.isPending}>
+                <Upload className="h-4 w-4" />{importEqMutation.isPending ? 'Importando...' : 'Importar Excel'}
+              </Button>
+              <input ref={eqImportRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleEqImport} />
+            </div>
+            {isAdmin && (
               <Button size="sm" onClick={() => { eqForm.reset(); setCreatingEquipment(true); }}>
                 <Plus className="h-4 w-4" />Agregar equipo
               </Button>
+            )}
+          </div>
+          {eqImportResult && (
+            <div className={`rounded-md px-3 py-2 text-sm ${eqImportResult.errors.length > 0 ? 'bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200' : 'bg-green-50 dark:bg-green-950/20 border border-green-200'}`}>
+              <div className="flex items-center justify-between">
+                <span>Importación: <strong>{eqImportResult.imported}</strong> equipos importados
+                  {eqImportResult.errors.length > 0 && <>, <strong className="text-destructive">{eqImportResult.errors.length}</strong> errores</>}
+                </span>
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEqImportResult(null)}>✕</Button>
+              </div>
+              {eqImportResult.errors.length > 0 && (
+                <ul className="mt-1 space-y-0.5">
+                  {eqImportResult.errors.map(e => <li key={e.row} className="text-xs text-destructive">Fila {e.row}: {e.message}</li>)}
+                </ul>
+              )}
             </div>
           )}
           {client.equipment?.length === 0 ? (
@@ -307,6 +460,9 @@ export function ClientDetailPage() {
         </div>
       )}
 
+      {/* Tab: Cámaras */}
+      {tab === 'cameras' && <CamerasTab clientId={client.id} clientName={client.name} />}
+
       {/* Tab: Backups */}
       {tab === 'backups' && (
         <BackupCalendar clientId={client.id} />
@@ -352,6 +508,54 @@ export function ClientDetailPage() {
       </Dialog>
 
       <ConfirmDialog open={!!deleteContact} onClose={() => setDeleteContact(null)} onConfirm={() => deleteContact && deleteCtMutation.mutate(deleteContact.id)} title="Eliminar funcionario" description={`¿Eliminar a "${deleteContact?.name}"? Esta acción no se puede deshacer.`} confirmLabel="Eliminar" loading={deleteCtMutation.isPending} />
+
+      {/* Dialog edición de información del cliente */}
+      <Dialog open={editingInfo} onOpenChange={open => !open && setEditingInfo(false)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Editar información de {client?.name}</DialogTitle></DialogHeader>
+          <form onSubmit={infoForm.handleSubmit(d => updateInfoMutation.mutate(d))} className="space-y-5">
+            {isAdmin && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2 space-y-1"><Label>Nombre *</Label><Input {...infoForm.register('name')} />{infoForm.formState.errors.name && <p className="text-xs text-destructive">{infoForm.formState.errors.name.message}</p>}</div>
+                <div className="space-y-1"><Label>Ciudad *</Label><Input {...infoForm.register('city')} />{infoForm.formState.errors.city && <p className="text-xs text-destructive">{infoForm.formState.errors.city.message}</p>}</div>
+                <div className="space-y-1"><Label>RUT *</Label><Input {...infoForm.register('rut')} />{infoForm.formState.errors.rut && <p className="text-xs text-destructive">{infoForm.formState.errors.rut.message}</p>}</div>
+                <div className="space-y-1"><Label>Teléfono *</Label><Input {...infoForm.register('phone')} /></div>
+                <div className="space-y-1"><Label>Email</Label><Input {...infoForm.register('email')} type="email" /></div>
+                <div className="col-span-2 space-y-1"><Label>Dirección</Label><Input {...infoForm.register('address')} /></div>
+                <div className="col-span-2 space-y-1"><Label>Notas</Label><Input {...infoForm.register('notes')} /></div>
+              </div>
+            )}
+            {!isAdmin && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1"><Label>Email</Label><Input {...infoForm.register('email')} type="email" /></div>
+                <div className="space-y-1"><Label>Dirección</Label><Input {...infoForm.register('address')} /></div>
+                <div className="col-span-2 space-y-1"><Label>Notas</Label><Input {...infoForm.register('notes')} /></div>
+              </div>
+            )}
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Red</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1"><Label>IP pública</Label><Input {...infoForm.register('publicIp')} placeholder="200.1.2.3" /></div>
+                <div className="space-y-1"><Label>ISP</Label><Input {...infoForm.register('isp')} /></div>
+                <div className="space-y-1"><Label>Rango interno</Label><Input {...infoForm.register('networkRange')} placeholder="192.168.1.0/24" /></div>
+              </div>
+            </div>
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contrato</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1"><Label>Plan</Label><Input {...infoForm.register('servicePlan')} /></div>
+                <div className="space-y-1"><Label>Inicio</Label><Input {...infoForm.register('contractStart')} type="date" /></div>
+                <div className="space-y-1"><Label>Vencimiento</Label><Input {...infoForm.register('contractEnd')} type="date" /></div>
+              </div>
+            </div>
+            {updateInfoMutation.error && <p className="text-xs text-destructive">Error al guardar. Intentá nuevamente.</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingInfo(false)}>Cancelar</Button>
+              <Button type="submit" disabled={updateInfoMutation.isPending}>{updateInfoMutation.isPending ? 'Guardando...' : 'Guardar'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

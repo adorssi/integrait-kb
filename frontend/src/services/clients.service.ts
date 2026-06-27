@@ -27,6 +27,21 @@ export const clientsService = {
     return data.data;
   },
 
+  async updateInfrastructure(id: string, payload: {
+    publicIp?: string | null;
+    isp?: string | null;
+    networkRange?: string | null;
+    servicePlan?: string | null;
+    contractStart?: string | null;
+    contractEnd?: string | null;
+    email?: string | null;
+    address?: string | null;
+    notes?: string | null;
+  }): Promise<Client> {
+    const { data } = await api.patch<ApiResponse<Client>>(`/clients/${id}/infrastructure`, payload);
+    return data.data;
+  },
+
   async deactivate(id: string): Promise<Client> {
     const { data } = await api.patch<ApiResponse<Client>>(`/clients/${id}/deactivate`);
     return data.data;

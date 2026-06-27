@@ -24,6 +24,12 @@ export function DashboardPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: backupStatus } = useQuery({
+    queryKey: ['backup-status'],
+    queryFn: backupsService.status,
+    staleTime: 5 * 60 * 1000,
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -52,11 +58,18 @@ export function DashboardPage() {
             <XCircle className="h-4 w-4 text-red-500" />
             Backups fallidos
           </CardTitle>
-          {!loadingFailed && (
-            <Badge variant={failedClients.length > 0 ? 'destructive' : 'success'}>
-              {failedClients.length > 0 ? `${failedClients.length} cliente${failedClients.length > 1 ? 's' : ''}` : 'Todo OK'}
-            </Badge>
-          )}
+          <div className="flex items-center gap-3">
+            {backupStatus?.lastSync && (
+              <span className="text-xs text-muted-foreground">
+                Última sync: {formatDateTime(backupStatus.lastSync)}
+              </span>
+            )}
+            {!loadingFailed && (
+              <Badge variant={failedClients.length > 0 ? 'destructive' : 'success'}>
+                {failedClients.length > 0 ? `${failedClients.length} cliente${failedClients.length > 1 ? 's' : ''}` : 'Backups OK'}
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loadingFailed ? (
