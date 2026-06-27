@@ -27,6 +27,10 @@ export const TechnicianRepository = {
     return prisma.technician.update({ where: { id }, data: { active: false } });
   },
 
+  async activate(id: string): Promise<Technician> {
+    return prisma.technician.update({ where: { id }, data: { active: true } });
+  },
+
   /** Incrementa el contador de intentos fallidos y retorna el nuevo valor */
   async incrementFailedAttempts(id: string): Promise<number> {
     const updated = await prisma.technician.update({

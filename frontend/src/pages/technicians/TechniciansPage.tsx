@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, UserX, Shield, User, LockKeyhole, LockKeyholeOpen } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, Shield, User, LockKeyhole, LockKeyholeOpen } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -40,7 +40,7 @@ function isLocked(t: Technician): boolean {
 function lockLabel(t: Technician): string {
   if (!t.lockedUntil) return '';
   const until = new Date(t.lockedUntil);
-  if (until >= new Date('2099-01-01')) return 'Bloqueado permanentemente';
+  if (until >= new Date('2099-01-01')) return 'Bloqueado';
   const diffMin = Math.ceil((until.getTime() - Date.now()) / 60000);
   return `Bloqueado (${diffMin} min restantes)`;
 }
@@ -79,6 +79,11 @@ export function TechniciansPage() {
 
   const unlockMutation = useMutation({
     mutationFn: (id: string) => techniciansService.unlock(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['technicians'] }),
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: (id: string) => techniciansService.activate(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['technicians'] }),
   });
 
@@ -142,6 +147,11 @@ export function TechniciansPage() {
                         {isLocked(t) && t.id !== me?.id && (
                           <Button variant="ghost" size="icon" onClick={() => unlockMutation.mutate(t.id)} title="Desbloquear" className="text-priority-medium hover:text-priority-medium" disabled={unlockMutation.isPending}>
                             <LockKeyholeOpen className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!t.active && (
+                          <Button variant="ghost" size="icon" onClick={() => activateMutation.mutate(t.id)} title="Reactivar" className="text-priority-low hover:text-priority-low" disabled={activateMutation.isPending}>
+                            <UserCheck className="h-4 w-4" />
                           </Button>
                         )}
                         {t.active && t.id !== me?.id && (

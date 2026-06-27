@@ -68,6 +68,15 @@ export const TechnicianController = {
     }
   },
 
+  async activate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const technician = await TechnicianService.activate(req.params.id);
+      res.json({ data: technician });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async unlock(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const requesterId = req.technician!.sub;

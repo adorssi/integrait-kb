@@ -63,6 +63,14 @@ export const TechnicianService = {
     return toPublic(updated);
   },
 
+  async activate(id: string): Promise<TechnicianPublic> {
+    const technician = await TechnicianRepository.findById(id);
+    if (!technician) throw new AppError(404, 'Técnico no encontrado');
+
+    const updated = await TechnicianRepository.activate(id);
+    return toPublic(updated);
+  },
+
   /** Desbloquea una cuenta: resetea intentos fallidos y elimina lockedUntil */
   async unlock(id: string, requesterId: string): Promise<TechnicianPublic> {
     if (id === requesterId) {

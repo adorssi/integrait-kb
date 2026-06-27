@@ -22,6 +22,11 @@ export const techniciansService = {
     return data.data;
   },
 
+  async activate(id: string): Promise<Technician> {
+    const { data } = await api.patch<ApiResponse<Technician>>(`/technicians/${id}/activate`);
+    return data.data;
+  },
+
   async unlock(id: string): Promise<Technician> {
     const { data } = await api.patch<ApiResponse<Technician>>(`/technicians/${id}/unlock`);
     return data.data;
