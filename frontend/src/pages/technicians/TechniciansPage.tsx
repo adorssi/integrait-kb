@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, UserX, UserCheck, Shield, User, LockKeyhole, LockKeyholeOpen } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -18,20 +18,45 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatDate } from '@/lib/utils';
 
-const techSchema = z.object({
+const passwordStrength = z.string()
+  .min(8, 'Mínimo 8 caracteres')
+  .max(128, 'Máximo 128 caracteres')
+  .regex(/[A-Z]/, 'Debe tener al menos una mayúscula')
+  .regex(/[0-9]/, 'Debe tener al menos un número')
+  .regex(/[^A-Za-z0-9]/, 'Debe tener al menos un carácter especial');
+
+const baseFields = {
   name: z.string().min(1, 'Nombre requerido').max(100, 'Máximo 100 caracteres'),
   email: z.string().email('Email inválido').max(255, 'Máximo 255 caracteres'),
-  password: z.string()
-    .min(8, 'Mínimo 8 caracteres')
-    .max(128, 'Máximo 128 caracteres')
-    .regex(/[A-Z]/, 'Debe tener al menos una mayúscula')
-    .regex(/[0-9]/, 'Debe tener al menos un número')
-    .regex(/[^A-Za-z0-9]/, 'Debe tener al menos un carácter especial')
-    .optional()
-    .or(z.literal('')),
   role: z.enum(['TECHNICIAN', 'ADMIN']),
+};
+
+const createSchema = z.object({
+  ...baseFields,
+  password: passwordStrength,
+  confirmPassword: z.string().min(1, 'Confirmá la contraseña'),
+}).refine(d => d.password === d.confirmPassword, {
+  message: 'Las contraseñas no coinciden',
+  path: ['confirmPassword'],
 });
-type TechForm = z.infer<typeof techSchema>;
+
+const updateSchema = z.object({
+  ...baseFields,
+  password: passwordStrength.optional().or(z.literal('')),
+  confirmPassword: z.string().optional().or(z.literal('')),
+}).superRefine((d, ctx) => {
+  if (d.password && d.password.length > 0 && d.password !== d.confirmPassword) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Las contraseñas no coinciden', path: ['confirmPassword'] });
+  }
+});
+
+type TechForm = {
+  name: string;
+  email: string;
+  password?: string;
+  confirmPassword?: string;
+  role: 'TECHNICIAN' | 'ADMIN';
+};
 
 function isLocked(t: Technician): boolean {
   return !!t.lockedUntil && new Date(t.lockedUntil) > new Date();
@@ -52,13 +77,17 @@ export function TechniciansPage() {
   const [creating, setCreating] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState<Technician | null>(null);
 
+  const editTargetRef = useRef<Technician | null>(null);
+  useEffect(() => { editTargetRef.current = editTarget; }, [editTarget]);
+
   const { data: technicians = [], isLoading } = useQuery({
     queryKey: ['technicians'],
     queryFn: techniciansService.list,
   });
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<TechForm>({
-    resolver: zodResolver(techSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: (values, ctx, opts) => zodResolver(editTargetRef.current ? updateSchema : createSchema)(values as any, ctx, opts),
     defaultValues: { role: 'TECHNICIAN' },
   });
 
@@ -87,8 +116,8 @@ export function TechniciansPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['technicians'] }),
   });
 
-  const openCreate = () => { reset({ role: 'TECHNICIAN', name: '', email: '', password: '' }); setCreating(true); };
-  const openEdit = (t: Technician) => { setEditTarget(t); reset({ name: t.name, email: t.email, role: t.role, password: '' }); };
+  const openCreate = () => { reset({ role: 'TECHNICIAN', name: '', email: '', password: '', confirmPassword: '' }); setCreating(true); };
+  const openEdit = (t: Technician) => { setEditTarget(t); reset({ name: t.name, email: t.email, role: t.role, password: '', confirmPassword: '' }); };
   const closeForm = () => { setCreating(false); setEditTarget(null); reset(); };
   const onSubmit = (d: TechForm) => editTarget ? updateMutation.mutate(d) : createMutation.mutate(d);
 
@@ -191,6 +220,13 @@ export function TechniciansPage() {
               <Input {...register('password')} type="password" placeholder="••••••••" />
               {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
             </div>
+            {(!editTarget || watch('password')) && (
+              <div className="space-y-2">
+                <Label>{editTarget ? 'Confirmá la nueva contraseña' : 'Confirmá la contraseña'}</Label>
+                <Input {...register('confirmPassword')} type="password" placeholder="••••••••" />
+                {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Rol</Label>
               <Select value={watch('role')} onValueChange={(v) => setValue('role', v as 'ADMIN' | 'TECHNICIAN')}>
