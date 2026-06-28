@@ -42,6 +42,7 @@ export function BackupCalendar({ clientId }: Props) {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-based
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const [tappedDay, setTappedDay] = useState<number | null>(null);
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['backups', clientId, year, month],
@@ -96,10 +97,12 @@ export function BackupCalendar({ clientId }: Props) {
   }, [year, month]);
 
   const prevMonth = () => {
+    setTappedDay(null);
     if (month === 1) { setYear(y => y - 1); setMonth(12); }
     else setMonth(m => m - 1);
   };
   const nextMonth = () => {
+    setTappedDay(null);
     if (month === 12) { setYear(y => y + 1); setMonth(1); }
     else setMonth(m => m + 1);
   };
@@ -107,13 +110,13 @@ export function BackupCalendar({ clientId }: Props) {
   return (
     <div className="space-y-4">
       {/* Header con navegación y botón sync */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
-          <span className="font-semibold w-44 text-center">{MONTHS[month - 1]} {year}</span>
+          <span className="font-semibold w-40 text-center">{MONTHS[month - 1]} {year}</span>
           <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {(syncMutation.data?.syncRanAt ?? status?.lastSync) && (
             <span className="text-xs text-muted-foreground">
               Última sync: {formatDateTime(syncMutation.data?.syncRanAt ?? status!.lastSync!)}
@@ -191,12 +194,17 @@ export function BackupCalendar({ clientId }: Props) {
               const result = worstResult(dayJobs);
               const isToday = day === now.getDate() && month === now.getMonth() + 1 && year === now.getFullYear();
 
+              const isActive = hoveredDay === day || tappedDay === day;
               return (
                 <div
                   key={day}
-                  className="aspect-square border-b border-r last:border-r-0 relative flex flex-col items-center justify-center gap-0.5 cursor-default select-none transition-colors hover:bg-muted/30"
+                  className={`aspect-square border-b border-r last:border-r-0 relative flex flex-col items-center justify-center gap-0.5 select-none transition-colors hover:bg-muted/30 ${dayJobs.length > 0 ? 'cursor-pointer' : 'cursor-default'}`}
                   onMouseEnter={() => setHoveredDay(day)}
                   onMouseLeave={() => setHoveredDay(null)}
+                  onClick={() => {
+                    if (dayJobs.length === 0) return;
+                    setTappedDay(prev => prev === day ? null : day);
+                  }}
                 >
                   <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'}`}>
                     {day}
@@ -210,8 +218,8 @@ export function BackupCalendar({ clientId }: Props) {
                     <span className="text-[9px] text-muted-foreground">{dayJobs.length} jobs</span>
                   )}
 
-                  {/* Tooltip al hacer hover */}
-                  {hoveredDay === day && dayJobs.length > 0 && (
+                  {/* Tooltip al hacer hover o tap */}
+                  {isActive && dayJobs.length > 0 && (
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 w-64 rounded-md border bg-popover shadow-lg p-2 text-xs pointer-events-none">
                       <p className="font-semibold mb-1">{day} de {MONTHS[month - 1]}</p>
                       <div className="space-y-1">

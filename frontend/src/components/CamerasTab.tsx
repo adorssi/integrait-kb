@@ -360,34 +360,36 @@ export function CamerasTab({ clientId, clientName }: Props) {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
+      <div className="space-y-2">
+        {/* Search + filter + primary actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[160px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input type="search" placeholder="Buscar cámara o IP..." className="pl-9 w-52" value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
+            <Input type="search" placeholder="Buscar cámara o IP..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
           </div>
           <Select value={filterNvrId} onValueChange={setFilterNvrId}>
-            <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todos los NVRs" /></SelectTrigger>
+            <SelectTrigger className="w-40 bg-background"><SelectValue placeholder="Todos los NVRs" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los NVRs</SelectItem>
               <SelectItem value="none">Sin NVR</SelectItem>
               {nvrs.map(n => <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Button size="sm" variant="outline" onClick={openCreateNvr} className="shrink-0"><Server className="h-4 w-4" />Nuevo NVR</Button>
+          <Button size="sm" onClick={openCreateCam} className="shrink-0"><Plus className="h-4 w-4" />Nueva cámara</Button>
         </div>
+        {/* Excel actions — collapse on mobile to save space */}
         <div className="flex gap-2 flex-wrap">
           <Button size="sm" variant="outline" onClick={() => exportCamerasTemplate(clientName)}>
-            <Download className="h-4 w-4" />Template Excel
+            <Download className="h-4 w-4" /><span className="hidden sm:inline">Template </span>Excel
           </Button>
           <Button size="sm" variant="outline" onClick={() => exportCamerasData(cameras, clientName)} disabled={cameras.length === 0}>
-            <Download className="h-4 w-4" />Exportar datos
+            <Download className="h-4 w-4" /><span className="hidden sm:inline">Exportar </span>datos
           </Button>
           <Button size="sm" variant="outline" onClick={() => importFileRef.current?.click()} disabled={importCamMutation.isPending}>
-            <Upload className="h-4 w-4" />{importCamMutation.isPending ? 'Importando...' : 'Importar Excel'}
+            <Upload className="h-4 w-4" />{importCamMutation.isPending ? 'Importando...' : <><span className="hidden sm:inline">Importar </span>Excel</>}
           </Button>
           <input ref={importFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
-          <Button size="sm" variant="outline" onClick={openCreateNvr}><Server className="h-4 w-4" />Nuevo NVR</Button>
-          <Button size="sm" onClick={openCreateCam}><Plus className="h-4 w-4" />Nueva cámara</Button>
         </div>
       </div>
 
@@ -442,32 +444,51 @@ export function CamerasTab({ clientId, clientName }: Props) {
                     {nvrCams.length === 0 ? (
                       <p className="text-xs text-muted-foreground pl-6">Sin cámaras asignadas a este NVR</p>
                     ) : (
-                      <table className="w-full text-sm">
-                        <thead><tr className="text-xs text-muted-foreground border-b">
-                          <th className="text-left py-1 pl-6">Nombre</th>
-                          <th className="text-left py-1">IP</th>
-                          <th className="text-left py-1">Canal</th>
-                          <th className="text-left py-1">Ubicación</th>
-                          <th />
-                        </tr></thead>
-                        <tbody className="divide-y">
+                      <>
+                        {/* Mobile: list */}
+                        <div className="block sm:hidden divide-y">
                           {nvrCams.map(cam => (
-                            <tr key={cam.id} className="hover:bg-muted/20">
-                              <td className="py-1.5 pl-6 font-medium">{cam.name}</td>
-                              <td className="py-1.5 font-mono text-xs text-muted-foreground">{cam.ip ?? '—'}</td>
-                              <td className="py-1.5 text-muted-foreground">{cam.channel ?? '—'}</td>
-                              <td className="py-1.5 text-muted-foreground">{cam.location ?? '—'}</td>
-                              <td className="py-1.5">
-                                <div className="flex items-center gap-1 justify-end">
-                                  <CredentialsBadge clientId={clientId} resourceId={cam.id} type="camera" others={cameras.filter(c => c.id !== cam.id).map(c => ({ id: c.id, name: c.name }))} />
-                                  <Button type="button" variant="ghost" size="icon" onClick={() => openEditCam(cam)}><Pencil className="h-3.5 w-3.5" /></Button>
-                                  {isAdmin && <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteCam(cam)}><Trash2 className="h-3.5 w-3.5" /></Button>}
-                                </div>
-                              </td>
-                            </tr>
+                            <div key={cam.id} className="flex items-center justify-between py-2 pl-6">
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm">{cam.name}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{[cam.ip, cam.channel && `ch.${cam.channel}`, cam.location].filter(Boolean).join(' · ') || '—'}</p>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <CredentialsBadge clientId={clientId} resourceId={cam.id} type="camera" others={cameras.filter(c => c.id !== cam.id).map(c => ({ id: c.id, name: c.name }))} />
+                                <Button type="button" variant="ghost" size="icon" onClick={() => openEditCam(cam)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                {isAdmin && <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteCam(cam)}><Trash2 className="h-3.5 w-3.5" /></Button>}
+                              </div>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
+                        </div>
+                        {/* Desktop: table */}
+                        <table className="hidden sm:table w-full text-sm">
+                          <thead><tr className="text-xs text-muted-foreground border-b">
+                            <th className="text-left py-1 pl-6">Nombre</th>
+                            <th className="text-left py-1">IP</th>
+                            <th className="text-left py-1">Canal</th>
+                            <th className="text-left py-1">Ubicación</th>
+                            <th />
+                          </tr></thead>
+                          <tbody className="divide-y">
+                            {nvrCams.map(cam => (
+                              <tr key={cam.id} className="hover:bg-muted/20">
+                                <td className="py-1.5 pl-6 font-medium">{cam.name}</td>
+                                <td className="py-1.5 font-mono text-xs text-muted-foreground">{cam.ip ?? '—'}</td>
+                                <td className="py-1.5 text-muted-foreground">{cam.channel ?? '—'}</td>
+                                <td className="py-1.5 text-muted-foreground">{cam.location ?? '—'}</td>
+                                <td className="py-1.5">
+                                  <div className="flex items-center gap-1 justify-end">
+                                    <CredentialsBadge clientId={clientId} resourceId={cam.id} type="camera" others={cameras.filter(c => c.id !== cam.id).map(c => ({ id: c.id, name: c.name }))} />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => openEditCam(cam)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                    {isAdmin && <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteCam(cam)}><Trash2 className="h-3.5 w-3.5" /></Button>}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
                     )}
                   </CardContent>
                 )}
@@ -485,7 +506,24 @@ export function CamerasTab({ clientId, clientName }: Props) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0 pb-3 px-4">
-                <table className="w-full text-sm">
+                {/* Mobile: list */}
+                <div className="block sm:hidden divide-y">
+                  {cameras.filter(c => !c.nvrId).map(cam => (
+                    <div key={cam.id} className="flex items-center justify-between py-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm">{cam.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{[cam.ip, cam.location].filter(Boolean).join(' · ') || '—'}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <CredentialsBadge clientId={clientId} resourceId={cam.id} type="camera" others={cameras.filter(c => c.id !== cam.id).map(c => ({ id: c.id, name: c.name }))} />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => openEditCam(cam)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        {isAdmin && <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteCam(cam)}><Trash2 className="h-3.5 w-3.5" /></Button>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop: table */}
+                <table className="hidden sm:table w-full text-sm">
                   <thead><tr className="text-xs text-muted-foreground border-b">
                     <th className="text-left py-1">Nombre</th>
                     <th className="text-left py-1">IP</th>

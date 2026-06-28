@@ -18,7 +18,9 @@ const NAV_ITEMS = [
 ];
 
 export function Sidebar() {
+  const [isMd, setIsMd] = useState(() => window.innerWidth >= 768);
   const [collapsed, setCollapsed] = useState(() => {
+    if (window.innerWidth < 768) return true;
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
 
@@ -26,8 +28,18 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    localStorage.setItem('sidebar-collapsed', String(collapsed));
-  }, [collapsed]);
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => {
+      setIsMd(e.matches);
+      if (!e.matches) setCollapsed(true);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  useEffect(() => {
+    if (isMd) localStorage.setItem('sidebar-collapsed', String(collapsed));
+  }, [collapsed, isMd]);
 
   const handleLogout = () => {
     logout();
@@ -52,16 +64,18 @@ export function Sidebar() {
           </div>
         )}
         {collapsed && <Monitor className="h-5 w-5 text-primary" />}
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className={cn(
-            'rounded-md p-1 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors',
-            collapsed && 'mt-0',
-          )}
-          aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
+        {isMd && (
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className={cn(
+              'rounded-md p-1 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors',
+              collapsed && 'mt-0',
+            )}
+            aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        )}
       </div>
 
       {/* Nav */}

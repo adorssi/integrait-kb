@@ -105,36 +105,38 @@ export function IncidentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Incidentes</h1>
           <p className="text-muted-foreground">{incidents.length} incidentes</p>
         </div>
-        <Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" />Nuevo incidente</Button>
+        <Button onClick={() => setCreating(true)} className="shrink-0"><Plus className="h-4 w-4" />Nuevo incidente</Button>
       </div>
 
       {/* Filtros */}
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 py-3">
-          <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-          <Select value={filters.status ?? ''} onValueChange={(v) => setFilters((f) => ({ ...f, status: (v as IncidentStatus) || undefined }))}>
-            <SelectTrigger className="h-8 w-44"><SelectValue placeholder="Estado" /></SelectTrigger>
-            <SelectContent>{STATUS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={filters.priority ?? ''} onValueChange={(v) => setFilters((f) => ({ ...f, priority: (v as Priority) || undefined }))}>
-            <SelectTrigger className="h-8 w-44"><SelectValue placeholder="Prioridad" /></SelectTrigger>
-            <SelectContent>{PRIORITY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={filters.clientId ?? ''} onValueChange={(v) => setFilters((f) => ({ ...f, clientId: v || undefined }))}>
-            <SelectTrigger className="h-8 w-48"><SelectValue placeholder="Cliente" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Todos los clientes</SelectItem>
-              {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {(filters.status || filters.priority || filters.clientId) && (
-            <Button variant="ghost" size="sm" onClick={() => setFilters({})}>Limpiar filtros</Button>
-          )}
+        <CardContent className="py-3">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
+            <Filter className="hidden sm:block h-4 w-4 text-muted-foreground shrink-0" />
+            <Select value={filters.status ?? ''} onValueChange={(v) => setFilters((f) => ({ ...f, status: (v as IncidentStatus) || undefined }))}>
+              <SelectTrigger className="h-9 w-full sm:h-8 sm:w-44"><SelectValue placeholder="Estado" /></SelectTrigger>
+              <SelectContent>{STATUS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={filters.priority ?? ''} onValueChange={(v) => setFilters((f) => ({ ...f, priority: (v as Priority) || undefined }))}>
+              <SelectTrigger className="h-9 w-full sm:h-8 sm:w-44"><SelectValue placeholder="Prioridad" /></SelectTrigger>
+              <SelectContent>{PRIORITY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={filters.clientId ?? ''} onValueChange={(v) => setFilters((f) => ({ ...f, clientId: v || undefined }))}>
+              <SelectTrigger className="h-9 w-full sm:h-8 sm:w-48"><SelectValue placeholder="Cliente" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos los clientes</SelectItem>
+                {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {(filters.status || filters.priority || filters.clientId) && (
+              <Button variant="ghost" size="sm" onClick={() => setFilters({})}>Limpiar</Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -147,75 +149,104 @@ export function IncidentsPage() {
             <EmptyState icon={AlertCircle} title="No hay incidentes" description="No se encontraron incidentes con los filtros aplicados"
               action={<Button onClick={() => setCreating(true)} size="sm"><Plus className="h-4 w-4" />Nuevo incidente</Button>} />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b bg-muted/40">
-                  <tr>
-                    {['Título', 'Cliente', 'Prioridad', 'Estado', 'Técnico asignado', 'Fecha', ''].map(h => (
-                      <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {incidents.map((inc) => (
-                    <tr key={inc.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-2 font-medium max-w-xs">
-                        <button className="truncate text-left hover:underline max-w-[240px] block" onClick={() => navigate(`/incidents/${inc.id}`)}>
-                          {inc.title}
-                        </button>
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{inc.client?.name}</td>
-                      <td className="px-4 py-2"><PriorityBadge priority={inc.priority} /></td>
-                      <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
-                        {inc.status === 'RESOLVED' ? (
-                          <StatusBadge status={inc.status} />
-                        ) : (
-                          <Select
-                            value={inc.status}
-                            onValueChange={(v) => statusMutation.mutate({ id: inc.id, status: v as IncidentStatus })}
-                          >
-                            <SelectTrigger className="h-7 w-36 text-xs border-0 bg-transparent p-1 focus:ring-0">
-                              <StatusBadge status={inc.status} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {INLINE_STATUS_OPTIONS[inc.status].map(o => (
-                                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </td>
-                      <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
-                        {isAdmin ? (
-                          <Select
-                            value={inc.technicianId ?? 'unassigned'}
-                            onValueChange={(v) => assignMutation.mutate({ id: inc.id, technicianId: v === 'unassigned' ? null : v })}
-                          >
-                            <SelectTrigger className="h-7 w-36 text-xs">
-                              <SelectValue placeholder="Sin asignar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">Sin asignar</SelectItem>
-                              {technicians.filter(t => t.active).map(t => (
-                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className="text-muted-foreground">{inc.assignedTo?.name ?? '—'}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground text-xs whitespace-nowrap">{formatDateTime(inc.createdAt)}</td>
-                      <td className="px-4 py-2">
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/incidents/${inc.id}`)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </td>
+            <>
+              {/* Mobile: cards */}
+              <div className="block sm:hidden divide-y">
+                {incidents.map((inc) => (
+                  <div
+                    key={inc.id}
+                    className="px-4 py-3 hover:bg-muted/20 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/incidents/${inc.id}`)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm leading-snug flex-1 min-w-0 line-clamp-2">{inc.title}</p>
+                      <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={e => { e.stopPropagation(); navigate(`/incidents/${inc.id}`); }}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                      <PriorityBadge priority={inc.priority} />
+                      <StatusBadge status={inc.status} />
+                      <span className="text-xs text-muted-foreground">{inc.client?.name}</span>
+                    </div>
+                    {inc.assignedTo && (
+                      <p className="text-xs text-muted-foreground mt-1">Asignado a: {inc.assignedTo.name}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatDateTime(inc.createdAt)}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/40">
+                    <tr>
+                      {['Título', 'Cliente', 'Prioridad', 'Estado', 'Técnico asignado', 'Fecha', ''].map(h => (
+                        <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y">
+                    {incidents.map((inc) => (
+                      <tr key={inc.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-2 font-medium max-w-xs">
+                          <button className="truncate text-left hover:underline max-w-[240px] block" onClick={() => navigate(`/incidents/${inc.id}`)}>
+                            {inc.title}
+                          </button>
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{inc.client?.name}</td>
+                        <td className="px-4 py-2"><PriorityBadge priority={inc.priority} /></td>
+                        <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                          {inc.status === 'RESOLVED' ? (
+                            <StatusBadge status={inc.status} />
+                          ) : (
+                            <Select
+                              value={inc.status}
+                              onValueChange={(v) => statusMutation.mutate({ id: inc.id, status: v as IncidentStatus })}
+                            >
+                              <SelectTrigger className="h-7 w-36 text-xs border-0 bg-transparent p-1 focus:ring-0">
+                                <StatusBadge status={inc.status} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {INLINE_STATUS_OPTIONS[inc.status].map(o => (
+                                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </td>
+                        <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                          {isAdmin ? (
+                            <Select
+                              value={inc.technicianId ?? 'unassigned'}
+                              onValueChange={(v) => assignMutation.mutate({ id: inc.id, technicianId: v === 'unassigned' ? null : v })}
+                            >
+                              <SelectTrigger className="h-7 w-36 text-xs">
+                                <SelectValue placeholder="Sin asignar" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Sin asignar</SelectItem>
+                                {technicians.filter(t => t.active).map(t => (
+                                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-muted-foreground">{inc.assignedTo?.name ?? '—'}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground text-xs whitespace-nowrap">{formatDateTime(inc.createdAt)}</td>
+                        <td className="px-4 py-2">
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/incidents/${inc.id}`)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

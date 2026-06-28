@@ -131,32 +131,55 @@ export function ClientsPage() {
           ) : clients.length === 0 ? (
             <EmptyState icon={Building2} title="No hay clientes" description={search ? 'No se encontraron resultados' : 'Creá el primer cliente'} action={isAdmin && !search ? <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" />Nuevo cliente</Button> : undefined} />
           ) : (
-            <table className="w-full text-sm">
-              <thead className="border-b bg-muted/40">
-                <tr>
-                  {['Nombre', 'Ciudad', 'RUT', 'Teléfono', 'Estado', ''].map(h => (
-                    <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y">
+            <>
+              {/* Mobile: cards */}
+              <div className="block sm:hidden divide-y">
                 {clients.map((c) => (
-                  <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium">{c.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.city}</td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{c.rut}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.phone}</td>
-                    <td className="px-4 py-3"><Badge variant={c.active ? 'success' : 'outline'}>{c.active ? 'Activo' : 'Inactivo'}</Badge></td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/clients/${c.id}`)} title="Ver detalle"><Eye className="h-4 w-4" /></Button>
-                        {isAdmin && <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-4 w-4" /></Button>}
+                  <div key={c.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
+                    <button className="flex-1 text-left min-w-0" onClick={() => navigate(`/clients/${c.id}`)}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium truncate">{c.name}</span>
+                        <Badge variant={c.active ? 'success' : 'outline'} className="text-xs">{c.active ? 'Activo' : 'Inactivo'}</Badge>
                       </div>
-                    </td>
-                  </tr>
+                      <p className="text-sm text-muted-foreground mt-0.5">{c.city}</p>
+                    </button>
+                    <div className="flex gap-1 shrink-0 ml-2">
+                      <Button variant="ghost" size="icon" onClick={() => navigate(`/clients/${c.id}`)} title="Ver detalle"><Eye className="h-4 w-4" /></Button>
+                      {isAdmin && <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-4 w-4" /></Button>}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/40">
+                    <tr>
+                      {['Nombre', 'Ciudad', 'RUT', 'Teléfono', 'Estado', ''].map(h => (
+                        <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {clients.map((c) => (
+                      <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium">{c.name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{c.city}</td>
+                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{c.rut}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{c.phone}</td>
+                        <td className="px-4 py-3"><Badge variant={c.active ? 'success' : 'outline'}>{c.active ? 'Activo' : 'Inactivo'}</Badge></td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => navigate(`/clients/${c.id}`)} title="Ver detalle"><Eye className="h-4 w-4" /></Button>
+                            {isAdmin && <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-4 w-4" /></Button>}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
