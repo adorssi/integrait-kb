@@ -83,6 +83,8 @@ export interface ITechnician {
   active: boolean;
   failedLoginAttempts: number;
   lockedUntil: Date | null;
+  twoFactorEnabled: boolean;
+  totpSecret: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -231,9 +233,20 @@ export interface IAuthPayload {
   sub: string;
   email: string;
   role: Role;
+  scope?: string;
   iat?: number;
   exp?: number;
 }
+
+export interface ITotpSetupData {
+  secret: string;
+  qrDataUrl: string;
+  otpauthUrl: string;
+}
+
+export type ILoginResponse =
+  | IAuthResponse
+  | { requiresTwoFactor: true; tempToken: string };
 
 export interface ILoginDTO {
   email: string;

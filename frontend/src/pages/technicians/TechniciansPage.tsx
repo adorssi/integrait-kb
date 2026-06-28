@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, UserX, UserCheck, Shield, User, LockKeyhole, LockKeyholeOpen } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, Shield, User, LockKeyhole, LockKeyholeOpen, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { techniciansService } from '@/services/technicians.service';
+import { authService } from '@/services/auth.service';
 import { Technician } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -116,6 +117,11 @@ export function TechniciansPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['technicians'] }),
   });
 
+  const adminDisable2faMutation = useMutation({
+    mutationFn: (id: string) => authService.adminDisable2fa(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['technicians'] }),
+  });
+
   const openCreate = () => { reset({ role: 'TECHNICIAN', name: '', email: '', password: '', confirmPassword: '' }); setCreating(true); };
   const openEdit = (t: Technician) => { setEditTarget(t); reset({ name: t.name, email: t.email, role: t.role, password: '', confirmPassword: '' }); };
   const closeForm = () => { setCreating(false); setEditTarget(null); reset(); };
@@ -158,6 +164,11 @@ export function TechniciansPage() {
                             <LockKeyhole className="h-3 w-3" />{lockLabel(t)}
                           </Badge>
                         )}
+                        {t.twoFactorEnabled && (
+                          <Badge variant="success" className="gap-1 text-xs">
+                            <ShieldCheck className="h-3 w-3" />2FA
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.email}</p>
                     </div>
@@ -166,6 +177,11 @@ export function TechniciansPage() {
                       {isLocked(t) && t.id !== me?.id && (
                         <Button variant="ghost" size="icon" onClick={() => unlockMutation.mutate(t.id)} title="Desbloquear" className="text-priority-medium hover:text-priority-medium" disabled={unlockMutation.isPending}>
                           <LockKeyholeOpen className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {t.twoFactorEnabled && t.id !== me?.id && (
+                        <Button variant="ghost" size="icon" onClick={() => adminDisable2faMutation.mutate(t.id)} title="Desactivar 2FA (recuperación)" className="text-muted-foreground hover:text-priority-medium" disabled={adminDisable2faMutation.isPending}>
+                          <ShieldOff className="h-4 w-4" />
                         </Button>
                       )}
                       {!t.active && (
@@ -211,6 +227,11 @@ export function TechniciansPage() {
                                 <LockKeyhole className="h-3 w-3" />{lockLabel(t)}
                               </Badge>
                             )}
+                            {t.twoFactorEnabled && (
+                              <Badge variant="success" className="gap-1">
+                                <ShieldCheck className="h-3 w-3" />2FA
+                              </Badge>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{formatDate(t.createdAt)}</td>
@@ -220,6 +241,11 @@ export function TechniciansPage() {
                             {isLocked(t) && t.id !== me?.id && (
                               <Button variant="ghost" size="icon" onClick={() => unlockMutation.mutate(t.id)} title="Desbloquear" className="text-priority-medium hover:text-priority-medium" disabled={unlockMutation.isPending}>
                                 <LockKeyholeOpen className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {t.twoFactorEnabled && t.id !== me?.id && (
+                              <Button variant="ghost" size="icon" onClick={() => adminDisable2faMutation.mutate(t.id)} title="Desactivar 2FA (recuperación)" className="text-muted-foreground hover:text-priority-medium" disabled={adminDisable2faMutation.isPending}>
+                                <ShieldOff className="h-4 w-4" />
                               </Button>
                             )}
                             {!t.active && (

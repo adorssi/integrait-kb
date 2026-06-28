@@ -38,6 +38,7 @@
 - `200` — Login exitoso
 - `400` — Datos inválidos (email malformado, password vacío)
 - `401` — Credenciales inválidas o cuenta desactivada
+- `423` — Cuenta bloqueada
 
 **Ejemplo:**
 ```bash
@@ -46,7 +47,7 @@ curl -X POST http://localhost:3000/auth/login \
   -d '{"email": "admin@empresa.com", "password": "Admin1234!"}'
 ```
 
-**Respuesta 200:**
+**Respuesta 200 (sin 2FA):**
 ```json
 {
   "token": "eyJhbGci...",
@@ -56,11 +57,101 @@ curl -X POST http://localhost:3000/auth/login \
     "email": "admin@empresa.com",
     "role": "ADMIN",
     "active": true,
+    "twoFactorEnabled": false,
     "createdAt": "2026-06-25T00:00:00.000Z",
     "updatedAt": "2026-06-25T00:00:00.000Z"
   }
 }
 ```
+
+**Respuesta 200 (con 2FA habilitado):**
+```json
+{
+  "requiresTwoFactor": true,
+  "tempToken": "eyJhbGci..."
+}
+```
+> El `tempToken` tiene expiración de 5 minutos y solo sirve para `POST /auth/2fa/login`.
+
+---
+
+### POST /auth/2fa/login
+
+**Descripción:** Segundo paso del login para cuentas con 2FA habilitado.
+**Auth:** No requerida (usa `tempToken` del paso anterior).
+
+**Request body:**
+```json
+{
+  "tempToken": "string (requerido, JWT temporal del paso anterior)",
+  "code": "string (requerido, 6 dígitos numéricos)"
+}
+```
+
+**Respuestas:**
+- `200` — Verificación exitosa. Devuelve JWT y datos del técnico (igual que login normal).
+- `400` — Formato de código inválido.
+- `401` — Código incorrecto, token inválido o expirado.
+
+---
+
+### POST /auth/2fa/setup
+
+**Descripción:** Genera un secreto TOTP y código QR para iniciar la configuración del 2FA. No guarda nada aún.
+**Auth:** Bearer JWT. Roles: TECHNICIAN, ADMIN.
+
+**Respuesta 200:**
+```json
+{
+  "data": {
+    "secret": "BASE32SECRETKEY",
+    "qrDataUrl": "data:image/png;base64,...",
+    "otpauthUrl": "otpauth://totp/IT%20Knowledge%20Base:email@ejemplo.com?secret=...&issuer=IT%20Knowledge%20Base"
+  }
+}
+```
+
+---
+
+### POST /auth/2fa/enable
+
+**Descripción:** Verifica el primer código TOTP y activa el 2FA guardando el secreto cifrado.
+**Auth:** Bearer JWT. Roles: TECHNICIAN, ADMIN.
+
+**Request body:**
+```json
+{
+  "secret": "string (requerido, el secret recibido en /2fa/setup)",
+  "code": "string (requerido, 6 dígitos del autenticador)"
+}
+```
+
+**Respuestas:** `200` / `401` (código incorrecto) / `409` (ya habilitado)
+
+---
+
+### POST /auth/2fa/disable
+
+**Descripción:** Verifica el código TOTP actual y desactiva el 2FA del técnico autenticado.
+**Auth:** Bearer JWT. Roles: TECHNICIAN, ADMIN.
+
+**Request body:**
+```json
+{
+  "code": "string (requerido, 6 dígitos del autenticador)"
+}
+```
+
+**Respuestas:** `200` / `400` (2FA no habilitado) / `401` (código incorrecto)
+
+---
+
+### DELETE /technicians/:id/2fa
+
+**Descripción:** Desactiva el 2FA de cualquier técnico sin requerir código (recuperación de acceso).
+**Auth:** Bearer JWT. Roles: ADMIN únicamente.
+
+**Respuestas:** `200` / `403` / `404`
 
 ---
 

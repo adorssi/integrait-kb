@@ -28,6 +28,11 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
 
     const payload = jwt.verify(token, secret) as IAuthPayload;
 
+    // Tokens temporales de 2FA no son válidos para endpoints protegidos normales
+    if (payload.scope === 'totp-verify') {
+      return next(new AppError(401, 'Token inválido o expirado'));
+    }
+
     // Verificar en DB que el técnico sigue activo — garantiza revocación inmediata al deshabilitar
     const technician = await TechnicianRepository.findById(payload.sub);
     if (!technician || !technician.active) {

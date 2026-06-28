@@ -53,4 +53,20 @@ export const TechnicianRepository = {
       data: { failedLoginAttempts: 0, lockedUntil: null },
     });
   },
+
+  /** Guarda el secreto TOTP cifrado y habilita el 2FA */
+  async enableTotp(id: string, encryptedSecret: string): Promise<void> {
+    await prisma.technician.update({
+      where: { id },
+      data: { twoFactorEnabled: true, totpSecret: encryptedSecret },
+    });
+  },
+
+  /** Elimina el secreto TOTP y deshabilita el 2FA */
+  async disableTotp(id: string): Promise<void> {
+    await prisma.technician.update({
+      where: { id },
+      data: { twoFactorEnabled: false, totpSecret: null },
+    });
+  },
 };

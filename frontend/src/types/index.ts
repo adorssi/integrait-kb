@@ -24,8 +24,24 @@ export interface Technician {
   role: Role;
   active: boolean;
   lockedUntil: string | null;
+  twoFactorEnabled: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  technician: Technician;
+}
+
+export type LoginResponse =
+  | AuthResponse
+  | { requiresTwoFactor: true; tempToken: string };
+
+export interface TotpSetupData {
+  secret: string;
+  qrDataUrl: string;
+  otpauthUrl: string;
 }
 
 export interface Client {

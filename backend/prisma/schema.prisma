@@ -140,6 +140,8 @@ model Technician {
   active              Boolean    @default(true)
   failedLoginAttempts Int        @default(0)
   lockedUntil         DateTime?
+  twoFactorEnabled    Boolean    @default(false)
+  totpSecret          String?
   incidents           Incident[]
   comments            Comment[]
   createdAt           DateTime   @default(now())

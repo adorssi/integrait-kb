@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { TechnicianService } from '../services/technician-service';
+import { AuthService } from '../services/auth-service';
 import { Role } from '../models/types';
 import { safeName, safeEmail, strongPassword } from '../utils/validators';
 
@@ -82,6 +83,16 @@ export const TechnicianController = {
       const requesterId = req.technician!.sub;
       const technician = await TechnicianService.unlock(req.params.id, requesterId);
       res.json({ data: technician });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /** Solo ADMIN. Deshabilita el 2FA de cualquier técnico (recuperación de acceso). */
+  async adminDisable2fa(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await AuthService.adminDisableTotp(req.params.id);
+      res.json({ data: { message: '2FA desactivado por administrador.' } });
     } catch (err) {
       next(err);
     }
