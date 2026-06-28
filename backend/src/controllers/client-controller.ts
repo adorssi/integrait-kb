@@ -6,8 +6,8 @@ import { safeName, safeShortText, safeText, safeEmail } from '../utils/validator
 const createSchema = z.object({
   name: safeName,
   city: safeName,
-  rut: safeShortText.pipe(z.string().min(1, 'RUT requerido')),
-  phone: safeShortText.pipe(z.string().min(1, 'Teléfono requerido')),
+  rut: safeShortText.optional().nullable(),
+  phone: safeShortText.optional().nullable(),
   email: safeEmail.optional().nullable(),
   address: safeShortText.optional().nullable(),
   notes: safeText.optional().nullable(),

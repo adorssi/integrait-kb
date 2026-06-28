@@ -32,8 +32,10 @@ export const ClientService = {
   },
 
   async create(data: ICreateClientDTO): Promise<Client> {
-    const existing = await ClientRepository.findByRut(data.rut);
-    if (existing) throw new AppError(409, 'Ya existe un cliente con ese RUT');
+    if (data.rut) {
+      const existing = await ClientRepository.findByRut(data.rut);
+      if (existing) throw new AppError(409, 'Ya existe un cliente con ese RUT');
+    }
     return ClientRepository.create(data);
   },
 

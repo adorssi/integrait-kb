@@ -11,8 +11,8 @@ model Client {
   id            String      @id @default(uuid())
   name          String
   city          String
-  rut           String      @unique
-  phone         String
+  rut           String?     @unique
+  phone         String?
   email         String?
   address       String?
   contact       String?     // campo legacy — reemplazado por Contact

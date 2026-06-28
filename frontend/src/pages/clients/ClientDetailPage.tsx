@@ -56,8 +56,8 @@ type Tab = 'info' | 'equipment' | 'contacts' | 'incidents' | 'cameras' | 'backup
 const clientInfoSchema = z.object({
   name: z.string().min(1, 'Nombre requerido'),
   city: z.string().min(1, 'Ciudad requerida'),
-  rut: z.string().min(1, 'RUT requerido'),
-  phone: z.string().min(1, 'Teléfono requerido'),
+  rut: z.string().optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   address: z.string().optional(),
   notes: z.string().optional(),
@@ -410,7 +410,7 @@ export function ClientDetailPage() {
   const openInfoEdit = () => {
     if (!client) return;
     infoForm.reset({
-      name: client.name, city: client.city, rut: client.rut, phone: client.phone,
+      name: client.name, city: client.city, rut: client.rut ?? '', phone: client.phone ?? '',
       email: client.email ?? '', address: client.address ?? '', notes: client.notes ?? '',
       servicePlan: client.servicePlan ?? '',
       contractStart: client.contractStart?.slice(0, 10) ?? '',
@@ -1261,8 +1261,8 @@ export function ClientDetailPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1"><Label>Nombre *</Label><Input {...infoForm.register('name')} />{infoForm.formState.errors.name && <p className="text-xs text-destructive">{infoForm.formState.errors.name.message}</p>}</div>
                 <div className="space-y-1"><Label>Ciudad *</Label><Input {...infoForm.register('city')} /></div>
-                <div className="space-y-1"><Label>RUT *</Label><Input {...infoForm.register('rut')} /></div>
-                <div className="space-y-1"><Label>Teléfono *</Label><Input {...infoForm.register('phone')} /></div>
+                <div className="space-y-1"><Label>RUT</Label><Input {...infoForm.register('rut')} /></div>
+                <div className="space-y-1"><Label>Teléfono</Label><Input {...infoForm.register('phone')} /></div>
                 <div className="space-y-1"><Label>Email</Label><Input {...infoForm.register('email')} type="email" /></div>
                 <div className="col-span-2 space-y-1"><Label>Dirección</Label><Input {...infoForm.register('address')} /></div>
                 <div className="col-span-2 space-y-1"><Label>Notas</Label><Input {...infoForm.register('notes')} /></div>

@@ -31,8 +31,8 @@ export interface IClient {
   id: string;
   name: string;
   city: string;
-  rut: string;
-  phone: string;
+  rut?: string | null;
+  phone?: string | null;
   contact?: string | null;
   notes?: string | null;
   active: boolean;
@@ -116,14 +116,11 @@ export interface IIncident {
 export interface ICreateClientDTO {
   name: string;
   city: string;
-  rut: string;
-  phone: string;
+  rut?: string | null;
+  phone?: string | null;
   email?: string | null;
   address?: string | null;
   notes?: string | null;
-  publicIp?: string | null;
-  isp?: string | null;
-  networkRange?: string | null;
   servicePlan?: string | null;
   contractStart?: Date | null;
   contractEnd?: Date | null;
@@ -132,8 +129,8 @@ export interface ICreateClientDTO {
 export interface IUpdateClientDTO {
   name?: string;
   city?: string;
-  rut?: string;
-  phone?: string;
+  rut?: string | null;
+  phone?: string | null;
   email?: string | null;
   address?: string | null;
   notes?: string | null;

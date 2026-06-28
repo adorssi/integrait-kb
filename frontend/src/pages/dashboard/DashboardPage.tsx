@@ -60,23 +60,15 @@ export function DashboardPage() {
 
       {/* Estado de backups por cliente */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-3 flex-wrap">
             Estado de backups
-          </CardTitle>
-          <div className="flex items-center gap-3">
             {backupStatus?.lastSync && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs font-normal text-muted-foreground">
                 Última sync: {formatDateTime(backupStatus.lastSync)}
               </span>
             )}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" /> OK</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-400" /> Advertencia</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" /> Fallido</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" /> Sin datos</span>
-            </div>
-          </div>
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {loadingAll ? (

@@ -21,8 +21,8 @@ import { useDebounce } from '@/hooks/useDebounce';
 const clientSchema = z.object({
   name: z.string().min(1, 'Nombre requerido'),
   city: z.string().min(1, 'Ciudad requerida'),
-  rut: z.string().min(1, 'RUT requerido'),
-  phone: z.string().min(1, 'Teléfono requerido'),
+  rut: z.string().optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   address: z.string().optional(),
   notes: z.string().optional(),
@@ -85,7 +85,7 @@ export function ClientsPage() {
   });
 
   const openCreate = () => { reset({ name: '', city: '', rut: '', phone: '', email: '', address: '', notes: '', servicePlan: '', contractStart: '', contractEnd: '' }); setCreating(true); };
-  const openEdit = (c: Client) => { setEditTarget(c); reset({ name: c.name, city: c.city, rut: c.rut, phone: c.phone, email: c.email ?? '', address: c.address ?? '', notes: c.notes ?? '', servicePlan: c.servicePlan ?? '', contractStart: c.contractStart?.slice(0, 10) ?? '', contractEnd: c.contractEnd?.slice(0, 10) ?? '' }); };
+  const openEdit = (c: Client) => { setEditTarget(c); reset({ name: c.name, city: c.city, rut: c.rut ?? '', phone: c.phone ?? '', email: c.email ?? '', address: c.address ?? '', notes: c.notes ?? '', servicePlan: c.servicePlan ?? '', contractStart: c.contractStart?.slice(0, 10) ?? '', contractEnd: c.contractEnd?.slice(0, 10) ?? '' }); };
   const closeForm = () => { setCreating(false); setEditTarget(null); reset(); };
   const onSubmit = (d: ClientForm) => editTarget ? updateMutation.mutate(d) : createMutation.mutate(d);
   const isOpen = creating || !!editTarget;
@@ -171,8 +171,8 @@ export function ClientsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2 space-y-1"><Label>Nombre *</Label><Input {...register('name')} placeholder="Empresa S.A." />{errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}</div>
               <div className="space-y-1"><Label>Ciudad *</Label><Input {...register('city')} placeholder="Montevideo" />{errors.city && <p className="text-xs text-destructive">{errors.city.message}</p>}</div>
-              <div className="space-y-1"><Label>RUT *</Label><Input {...register('rut')} placeholder="21000000001" />{errors.rut && <p className="text-xs text-destructive">{errors.rut.message}</p>}</div>
-              <div className="space-y-1"><Label>Teléfono *</Label><Input {...register('phone')} placeholder="099 000 000" />{errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}</div>
+              <div className="space-y-1"><Label>RUT</Label><Input {...register('rut')} placeholder="21000000001" /></div>
+              <div className="space-y-1"><Label>Teléfono</Label><Input {...register('phone')} placeholder="099 000 000" /></div>
               <div className="space-y-1"><Label>Email</Label><Input {...register('email')} type="email" placeholder="contacto@empresa.com" />{errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}</div>
               <div className="col-span-2 space-y-1"><Label>Dirección</Label><Input {...register('address')} placeholder="Av. 18 de Julio 1234" /></div>
               <div className="col-span-2 space-y-1"><Label>Notas</Label><Input {...register('notes')} placeholder="Particularidades, observaciones..." /></div>
