@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Eye, EyeOff, Pencil, Trash2, ChevronDown, ChevronRight, Key, Loader2, Server, Camera as CameraIcon, Download, Upload } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -269,7 +269,20 @@ export function CamerasTab({ clientId, clientName }: Props) {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const importFileRef = useRef<HTMLInputElement>(null);
+  const importDropdownRef = useRef<HTMLDivElement>(null);
+  const [importDropdownOpen, setImportDropdownOpen] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; errors: { row: number; message: string }[] } | null>(null);
+
+  const closeImportDropdown = useCallback((e: MouseEvent) => {
+    if (importDropdownRef.current && !importDropdownRef.current.contains(e.target as Node)) {
+      setImportDropdownOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (importDropdownOpen) document.addEventListener('mousedown', closeImportDropdown);
+    return () => document.removeEventListener('mousedown', closeImportDropdown);
+  }, [importDropdownOpen, closeImportDropdown]);
 
   const [search, setSearch] = useState('');
   const [filterNvrId, setFilterNvrId] = useState<string>('all');
@@ -378,17 +391,34 @@ export function CamerasTab({ clientId, clientName }: Props) {
           <Button size="sm" variant="outline" onClick={openCreateNvr} className="shrink-0"><Server className="h-4 w-4" />Nuevo NVR</Button>
           <Button size="sm" onClick={openCreateCam} className="shrink-0"><Plus className="h-4 w-4" />Nueva cámara</Button>
         </div>
-        {/* Excel actions — collapse on mobile to save space */}
-        <div className="flex gap-2 flex-wrap">
-          <Button size="sm" variant="outline" onClick={() => exportCamerasTemplate(clientName)}>
-            <Download className="h-4 w-4" /><span className="hidden sm:inline">Template </span>Excel
-          </Button>
+        {/* Exportar + Importar */}
+        <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => exportCamerasData(cameras, clientName)} disabled={cameras.length === 0}>
-            <Download className="h-4 w-4" /><span className="hidden sm:inline">Exportar </span>datos
+            <Download className="h-4 w-4" />Exportar datos
           </Button>
-          <Button size="sm" variant="outline" onClick={() => importFileRef.current?.click()} disabled={importCamMutation.isPending}>
-            <Upload className="h-4 w-4" />{importCamMutation.isPending ? 'Importando...' : <><span className="hidden sm:inline">Importar </span>Excel</>}
-          </Button>
+          <div ref={importDropdownRef} className="relative">
+            <Button size="sm" variant="outline" onClick={() => setImportDropdownOpen(o => !o)} disabled={importCamMutation.isPending}>
+              <Upload className="h-4 w-4" />{importCamMutation.isPending ? 'Importando...' : 'Importar'}
+            </Button>
+            {importDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1 z-20 min-w-[180px] rounded-md border bg-popover shadow-md py-1 text-sm">
+                <button
+                  type="button"
+                  className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                  onClick={() => { exportCamerasTemplate(clientName); setImportDropdownOpen(false); }}
+                >
+                  <Download className="h-3.5 w-3.5 text-muted-foreground" />Descargar template
+                </button>
+                <button
+                  type="button"
+                  className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                  onClick={() => { importFileRef.current?.click(); setImportDropdownOpen(false); }}
+                >
+                  <Upload className="h-3.5 w-3.5 text-muted-foreground" />Seleccionar archivo
+                </button>
+              </div>
+            )}
+          </div>
           <input ref={importFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
         </div>
       </div>
@@ -423,16 +453,24 @@ export function CamerasTab({ clientId, clientName }: Props) {
             return (
               <Card key={nvr.id} className={hasMatch ? 'ring-2 ring-primary/60 shadow-sm' : ''}>
                 <CardHeader className="py-3 px-4">
-                  <div className="flex items-center justify-between">
-                    <button type="button" className="flex items-center gap-2 text-left flex-1" onClick={() => toggleNvr(nvr.id)}>
-                      {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                      <Server className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium text-sm">{nvr.name}</span>
-                      <Badge variant="outline" className="text-xs font-mono">{nvr.ip}{nvr.port ? `:${nvr.port}` : ''}</Badge>
-                      {nvr.brand && <span className="text-xs text-muted-foreground">{nvr.brand}{nvr.model ? ` ${nvr.model}` : ''}</span>}
-                      <Badge variant="secondary" className="text-xs">{nvrCams.length} cám{nvrCams.length !== 1 ? 's' : ''}</Badge>
+                  <div className="flex items-start justify-between gap-2">
+                    <button type="button" className="flex items-start gap-2 text-left flex-1 min-w-0" onClick={() => toggleNvr(nvr.id)}>
+                      <span className="mt-0.5 shrink-0">
+                        {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      </span>
+                      <Server className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium text-sm">{nvr.name}</span>
+                          <Badge variant="secondary" className="text-xs">{nvrCams.length} cám{nvrCams.length !== 1 ? 's' : ''}</Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <Badge variant="outline" className="text-xs font-mono">{nvr.ip}{nvr.port ? `:${nvr.port}` : ''}</Badge>
+                          {nvr.brand && <span className="text-xs text-muted-foreground">{nvr.brand}{nvr.model ? ` ${nvr.model}` : ''}</span>}
+                        </div>
+                      </div>
                     </button>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       <CredentialsBadge clientId={clientId} resourceId={nvr.id} type="nvr" others={nvrs.filter(n => n.id !== nvr.id).map(n => ({ id: n.id, name: n.name }))} />
                       <Button type="button" variant="ghost" size="icon" onClick={() => openEditNvr(nvr)}><Pencil className="h-3.5 w-3.5" /></Button>
                       {isAdmin && <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteNvr(nvr)}><Trash2 className="h-3.5 w-3.5" /></Button>}

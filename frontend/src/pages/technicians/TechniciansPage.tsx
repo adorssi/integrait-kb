@@ -140,60 +140,106 @@ export function TechniciansPage() {
           ) : technicians.length === 0 ? (
             <EmptyState icon={User} title="No hay técnicos" description="Creá el primer técnico" action={<Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" />Nuevo técnico</Button>} />
           ) : (
-            <table className="w-full text-sm">
-              <thead className="border-b bg-muted/40">
-                <tr>
-                  {['Nombre', 'Email', 'Rol', 'Estado', 'Creado', ''].map(h => (
-                    <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y">
+            <>
+              {/* Mobile: cards */}
+              <div className="block sm:hidden divide-y">
                 {technicians.map((t) => (
-                  <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium">{t.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{t.email}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={t.role === 'ADMIN' ? 'default' : 'secondary'}>
-                        {t.role === 'ADMIN' ? <Shield className="mr-1 h-3 w-3" /> : <User className="mr-1 h-3 w-3" />}
-                        {t.role}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-1">
-                        <Badge variant={t.active ? 'success' : 'outline'}>{t.active ? 'Activo' : 'Inactivo'}</Badge>
+                  <div key={t.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium text-sm">{t.name}</span>
+                        <Badge variant={t.role === 'ADMIN' ? 'default' : 'secondary'} className="text-xs">
+                          {t.role === 'ADMIN' ? <Shield className="mr-1 h-3 w-3" /> : <User className="mr-1 h-3 w-3" />}
+                          {t.role}
+                        </Badge>
+                        <Badge variant={t.active ? 'success' : 'outline'} className="text-xs">{t.active ? 'Activo' : 'Inactivo'}</Badge>
                         {isLocked(t) && (
-                          <Badge variant="critical" className="gap-1">
+                          <Badge variant="critical" className="gap-1 text-xs">
                             <LockKeyhole className="h-3 w-3" />{lockLabel(t)}
                           </Badge>
                         )}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(t.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(t)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                        {isLocked(t) && t.id !== me?.id && (
-                          <Button variant="ghost" size="icon" onClick={() => unlockMutation.mutate(t.id)} title="Desbloquear" className="text-priority-medium hover:text-priority-medium" disabled={unlockMutation.isPending}>
-                            <LockKeyholeOpen className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {!t.active && (
-                          <Button variant="ghost" size="icon" onClick={() => activateMutation.mutate(t.id)} title="Reactivar" className="text-priority-low hover:text-priority-low" disabled={activateMutation.isPending}>
-                            <UserCheck className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {t.active && t.id !== me?.id && (
-                          <Button variant="ghost" size="icon" onClick={() => setDeactivateTarget(t)} title="Desactivar" className="text-destructive hover:text-destructive">
-                            <UserX className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.email}</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0 ml-2">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(t)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                      {isLocked(t) && t.id !== me?.id && (
+                        <Button variant="ghost" size="icon" onClick={() => unlockMutation.mutate(t.id)} title="Desbloquear" className="text-priority-medium hover:text-priority-medium" disabled={unlockMutation.isPending}>
+                          <LockKeyholeOpen className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {!t.active && (
+                        <Button variant="ghost" size="icon" onClick={() => activateMutation.mutate(t.id)} title="Reactivar" className="text-priority-low hover:text-priority-low" disabled={activateMutation.isPending}>
+                          <UserCheck className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {t.active && t.id !== me?.id && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeactivateTarget(t)} title="Desactivar" className="text-destructive hover:text-destructive">
+                          <UserX className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/40">
+                    <tr>
+                      {['Nombre', 'Email', 'Rol', 'Estado', 'Creado', ''].map(h => (
+                        <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {technicians.map((t) => (
+                      <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium">{t.name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{t.email}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={t.role === 'ADMIN' ? 'default' : 'secondary'}>
+                            {t.role === 'ADMIN' ? <Shield className="mr-1 h-3 w-3" /> : <User className="mr-1 h-3 w-3" />}
+                            {t.role}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <Badge variant={t.active ? 'success' : 'outline'}>{t.active ? 'Activo' : 'Inactivo'}</Badge>
+                            {isLocked(t) && (
+                              <Badge variant="critical" className="gap-1">
+                                <LockKeyhole className="h-3 w-3" />{lockLabel(t)}
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatDate(t.createdAt)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(t)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                            {isLocked(t) && t.id !== me?.id && (
+                              <Button variant="ghost" size="icon" onClick={() => unlockMutation.mutate(t.id)} title="Desbloquear" className="text-priority-medium hover:text-priority-medium" disabled={unlockMutation.isPending}>
+                                <LockKeyholeOpen className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!t.active && (
+                              <Button variant="ghost" size="icon" onClick={() => activateMutation.mutate(t.id)} title="Reactivar" className="text-priority-low hover:text-priority-low" disabled={activateMutation.isPending}>
+                                <UserCheck className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {t.active && t.id !== me?.id && (
+                              <Button variant="ghost" size="icon" onClick={() => setDeactivateTarget(t)} title="Desactivar" className="text-destructive hover:text-destructive">
+                                <UserX className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

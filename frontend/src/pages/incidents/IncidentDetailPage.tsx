@@ -332,7 +332,8 @@ export function IncidentDetailPage() {
 
               {/* Input nuevo comentario */}
               <div className="pt-2 border-t space-y-2">
-                <div className="flex gap-2">
+                {/* Desktop: textarea + icon button en fila */}
+                <div className="hidden sm:flex gap-2">
                   <Textarea
                     value={commentText}
                     onChange={(e) => { setCommentText(e.target.value); setCommentError(null); }}
@@ -351,6 +352,28 @@ export function IncidentDetailPage() {
                     onClick={handleCommentSubmit}
                   >
                     {commentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {/* Mobile: textarea encima, botón ancho completo debajo */}
+                <div className="flex flex-col gap-2 sm:hidden">
+                  <Textarea
+                    value={commentText}
+                    onChange={(e) => { setCommentText(e.target.value); setCommentError(null); }}
+                    placeholder="Agregá un comentario..."
+                    rows={2}
+                    className="resize-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCommentSubmit(); }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    className="w-full"
+                    disabled={!commentText.trim() || commentMutation.isPending}
+                    onClick={handleCommentSubmit}
+                  >
+                    {commentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {commentMutation.isPending ? 'Enviando...' : 'Enviar comentario'}
                   </Button>
                 </div>
                 {commentError && (

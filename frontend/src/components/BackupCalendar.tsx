@@ -242,14 +242,16 @@ export function BackupCalendar({ clientId }: Props) {
       )}
 
       {/* Leyenda */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-        {(['SUCCESS', 'WARNING', 'FAILURE'] as const).map((r) => (
-          <div key={r} className="flex items-center gap-1">
-            <span className={`inline-block w-2 h-2 rounded-full ${r === 'SUCCESS' ? 'bg-green-500' : r === 'WARNING' ? 'bg-yellow-400' : 'bg-red-500'}`} />
-            {RESULT_LABEL[r]}
-          </div>
-        ))}
-        <span className="ml-2">· Si hay múltiples jobs en un día se muestra el peor resultado</span>
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4">
+          {(['SUCCESS', 'WARNING', 'FAILURE'] as const).map((r) => (
+            <div key={r} className="flex items-center gap-1">
+              <span className={`inline-block w-2 h-2 rounded-full ${r === 'SUCCESS' ? 'bg-green-500' : r === 'WARNING' ? 'bg-yellow-400' : 'bg-red-500'}`} />
+              {RESULT_LABEL[r]}
+            </div>
+          ))}
+        </div>
+        <p>Si hay múltiples jobs en un día se muestra el peor resultado</p>
       </div>
     </div>
   );

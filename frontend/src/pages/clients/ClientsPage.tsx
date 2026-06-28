@@ -92,17 +92,28 @@ export function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Clientes</h1>
-          <p className="text-muted-foreground">{clients.length} clientes activos</p>
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Clientes</h1>
+            <p className="text-muted-foreground">{clients.length} clientes activos</p>
+          </div>
+          {isAdmin && (
+            <Button onClick={openCreate} className="shrink-0 hidden sm:flex">
+              <Plus className="h-4 w-4" />Nuevo cliente
+            </Button>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className="flex-1 sm:flex-none">
             {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Sincronizar Backups
           </Button>
-          {isAdmin && <Button onClick={openCreate}><Plus className="h-4 w-4" />Nuevo cliente</Button>}
+          {isAdmin && (
+            <Button onClick={openCreate} className="flex-1 sm:hidden">
+              <Plus className="h-4 w-4" />Nuevo cliente
+            </Button>
+          )}
         </div>
       </div>
 
