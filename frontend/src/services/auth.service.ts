@@ -38,4 +38,18 @@ export const authService = {
   async adminDisable2fa(technicianId: string): Promise<void> {
     await api.delete(`/technicians/${technicianId}/2fa`);
   },
+
+  async requireTotp(technicianId: string, required: boolean): Promise<void> {
+    await api.patch(`/technicians/${technicianId}/require-2fa`, { required });
+  },
+
+  async setup2faForced(tempToken: string): Promise<TotpSetupData> {
+    const { data } = await api.post<{ data: TotpSetupData }>('/auth/2fa/setup-forced', { tempToken });
+    return data.data;
+  },
+
+  async enable2faForced(tempToken: string, secret: string, code: string): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/2fa/enable-forced', { tempToken, secret, code });
+    return data;
+  },
 };

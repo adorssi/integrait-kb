@@ -141,6 +141,7 @@ model Technician {
   failedLoginAttempts Int        @default(0)
   lockedUntil         DateTime?
   twoFactorEnabled    Boolean    @default(false)
+  twoFactorRequired   Boolean    @default(false)
   totpSecret          String?
   incidents           Incident[]
   comments            Comment[]

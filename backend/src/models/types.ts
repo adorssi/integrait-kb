@@ -84,6 +84,7 @@ export interface ITechnician {
   failedLoginAttempts: number;
   lockedUntil: Date | null;
   twoFactorEnabled: boolean;
+  twoFactorRequired: boolean;
   totpSecret: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -246,7 +247,8 @@ export interface ITotpSetupData {
 
 export type ILoginResponse =
   | IAuthResponse
-  | { requiresTwoFactor: true; tempToken: string };
+  | { requiresTwoFactor: true; tempToken: string }
+  | { requiresTotpSetup: true; tempToken: string };
 
 export interface ILoginDTO {
   email: string;

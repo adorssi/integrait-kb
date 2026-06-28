@@ -17,6 +17,7 @@ router.put('/:id', requireRole(Role.ADMIN), TechnicianController.update);
 router.patch('/:id/deactivate', requireRole(Role.ADMIN), TechnicianController.deactivate);
 router.patch('/:id/activate', requireRole(Role.ADMIN), TechnicianController.activate);
 router.patch('/:id/unlock', requireRole(Role.ADMIN), TechnicianController.unlock);
+router.patch('/:id/require-2fa', requireRole(Role.ADMIN), TechnicianController.requireTotp);
 router.delete('/:id/2fa', requireRole(Role.ADMIN), TechnicianController.adminDisable2fa);
 
 export default router;

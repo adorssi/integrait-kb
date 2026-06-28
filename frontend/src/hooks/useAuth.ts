@@ -6,7 +6,7 @@ import { authService } from '@/services/auth.service';
 interface AuthStore {
   token: string | null;
   technician: Technician | null;
-  login: (email: string, password: string) => Promise<{ requiresTwoFactor: boolean; tempToken?: string }>;
+  login: (email: string, password: string) => Promise<{ requiresTwoFactor?: boolean; requiresTotpSetup?: boolean; tempToken?: string }>;
   setAuth: (token: string, technician: Technician) => void;
   logout: () => void;
 }
@@ -21,6 +21,9 @@ const useAuthStore = create<AuthStore>()(
         const result = await authService.login(email, password);
         if ('requiresTwoFactor' in result && result.requiresTwoFactor) {
           return { requiresTwoFactor: true, tempToken: result.tempToken };
+        }
+        if ('requiresTotpSetup' in result && result.requiresTotpSetup) {
+          return { requiresTotpSetup: true, tempToken: result.tempToken };
         }
         const { token, technician } = result as AuthResponse;
         set({ token, technician });

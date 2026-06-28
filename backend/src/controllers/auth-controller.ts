@@ -24,6 +24,16 @@ const verifyLoginSchema = z.object({
   code: z.string().length(6).regex(/^\d+$/, 'Solo dígitos'),
 });
 
+const setupForcedSchema = z.object({
+  tempToken: z.string().min(10),
+});
+
+const enableForcedSchema = z.object({
+  tempToken: z.string().min(10),
+  secret: z.string().min(10),
+  code: z.string().length(6).regex(/^\d+$/),
+});
+
 export const AuthController = {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -92,13 +102,39 @@ export const AuthController = {
 
   /**
    * Segundo paso del login cuando el técnico tiene 2FA habilitado.
-   * Recibe el tempToken (obtenido en /login) y el código TOTP.
-   * No requiere el middleware authenticate porque el tempToken actúa como credencial temporal.
+   * No requiere authenticate porque el tempToken actúa como credencial temporal.
    */
   async verifyTotpLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { tempToken, code } = verifyLoginSchema.parse(req.body);
       const result = await AuthService.verifyTotpLogin(tempToken, code);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
+   * Setup forzado: genera QR para técnicos que deben configurar 2FA antes de acceder.
+   * Usa el tempToken emitido en /login cuando twoFactorRequired=true y twoFactorEnabled=false.
+   */
+  async setupForced2fa(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { tempToken } = setupForcedSchema.parse(req.body);
+      const data = await AuthService.setupTotpForced(tempToken);
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
+   * Completa el setup forzado: verifica el primer código y emite el JWT final.
+   */
+  async enableForced2fa(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { tempToken, secret, code } = enableForcedSchema.parse(req.body);
+      const result = await AuthService.enableTotpForced(tempToken, secret, code);
       res.status(200).json(result);
     } catch (err) {
       next(err);

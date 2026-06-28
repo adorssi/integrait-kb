@@ -71,6 +71,15 @@ export const TechnicianService = {
     return toPublic(updated);
   },
 
+  /** Activa o desactiva la exigencia de 2FA para un técnico */
+  async requireTotp(id: string, required: boolean): Promise<TechnicianPublic> {
+    const technician = await TechnicianRepository.findById(id);
+    if (!technician) throw new AppError(404, 'Técnico no encontrado');
+    await TechnicianRepository.setTotpRequired(id, required);
+    const updated = await TechnicianRepository.findById(id);
+    return toPublic(updated!);
+  },
+
   /** Desbloquea una cuenta: resetea intentos fallidos y elimina lockedUntil */
   async unlock(id: string, requesterId: string): Promise<TechnicianPublic> {
     if (id === requesterId) {

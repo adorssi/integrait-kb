@@ -54,6 +54,11 @@ export const TechnicianRepository = {
     });
   },
 
+  /** Activa o desactiva la exigencia de 2FA para el técnico */
+  async setTotpRequired(id: string, required: boolean): Promise<void> {
+    await prisma.technician.update({ where: { id }, data: { twoFactorRequired: required } });
+  },
+
   /** Guarda el secreto TOTP cifrado y habilita el 2FA */
   async enableTotp(id: string, encryptedSecret: string): Promise<void> {
     await prisma.technician.update({

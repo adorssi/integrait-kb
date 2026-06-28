@@ -88,6 +88,17 @@ export const TechnicianController = {
     }
   },
 
+  /** Solo ADMIN. Activa o desactiva la exigencia de 2FA para un técnico. */
+  async requireTotp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { required } = z.object({ required: z.boolean() }).parse(req.body);
+      const technician = await TechnicianService.requireTotp(req.params.id, required);
+      res.json({ data: technician });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   /** Solo ADMIN. Deshabilita el 2FA de cualquier técnico (recuperación de acceso). */
   async adminDisable2fa(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

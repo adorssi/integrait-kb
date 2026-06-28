@@ -227,31 +227,37 @@ export function ProfileDialog({ open, onOpenChange }: Props) {
               </Button>
             )}
 
-            {/* 2FA activado → flujo de desactivación */}
+            {/* 2FA activado: solo ADMIN puede desactivar el propio */}
             {technician.twoFactorEnabled && setupStep === 'idle' && (
-              <div className="space-y-2">
-                <Label htmlFor="disable-code" className="text-xs">Código actual para desactivar</Label>
-                <Input
-                  id="disable-code"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={disableCode}
-                  onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleDisable(); }}
-                  className="text-center text-lg tracking-widest font-mono"
-                />
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={handleDisable}
-                  disabled={disableCode.length !== 6 || isLoading}
-                  className="w-full"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Desactivar 2FA'}
-                </Button>
-              </div>
+              technician.role === 'ADMIN' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="disable-code" className="text-xs">Código actual para desactivar</Label>
+                  <Input
+                    id="disable-code"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="123456"
+                    value={disableCode}
+                    onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleDisable(); }}
+                    className="text-center text-lg tracking-widest font-mono"
+                  />
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleDisable}
+                    disabled={disableCode.length !== 6 || isLoading}
+                    className="w-full"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Desactivar 2FA'}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground rounded-md bg-muted px-3 py-2">
+                  El 2FA está activo en tu cuenta. Contactá al administrador si necesitás modificarlo.
+                </p>
+              )
             )}
           </div>
         </div>

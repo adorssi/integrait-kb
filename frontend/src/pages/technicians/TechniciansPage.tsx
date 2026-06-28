@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, UserX, UserCheck, Shield, User, LockKeyhole, LockKeyholeOpen, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, Shield, User, LockKeyhole, LockKeyholeOpen, ShieldCheck, ShieldOff, ShieldAlert } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -122,6 +122,11 @@ export function TechniciansPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['technicians'] }),
   });
 
+  const requireTotpMutation = useMutation({
+    mutationFn: ({ id, required }: { id: string; required: boolean }) => authService.requireTotp(id, required),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['technicians'] }),
+  });
+
   const openCreate = () => { reset({ role: 'TECHNICIAN', name: '', email: '', password: '', confirmPassword: '' }); setCreating(true); };
   const openEdit = (t: Technician) => { setEditTarget(t); reset({ name: t.name, email: t.email, role: t.role, password: '', confirmPassword: '' }); };
   const closeForm = () => { setCreating(false); setEditTarget(null); reset(); };
@@ -169,6 +174,11 @@ export function TechniciansPage() {
                             <ShieldCheck className="h-3 w-3" />2FA
                           </Badge>
                         )}
+                        {!t.twoFactorEnabled && t.twoFactorRequired && (
+                          <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-400">
+                            <ShieldAlert className="h-3 w-3" />2FA Requerido
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.email}</p>
                     </div>
@@ -179,8 +189,20 @@ export function TechniciansPage() {
                           <LockKeyholeOpen className="h-4 w-4" />
                         </Button>
                       )}
+                      {t.id !== me?.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => requireTotpMutation.mutate({ id: t.id, required: !t.twoFactorRequired })}
+                          title={t.twoFactorRequired ? 'Quitar exigencia de 2FA' : 'Forzar 2FA'}
+                          className={t.twoFactorRequired ? 'text-amber-600 hover:text-amber-700' : 'text-muted-foreground hover:text-amber-600'}
+                          disabled={requireTotpMutation.isPending}
+                        >
+                          <ShieldAlert className="h-4 w-4" />
+                        </Button>
+                      )}
                       {t.twoFactorEnabled && t.id !== me?.id && (
-                        <Button variant="ghost" size="icon" onClick={() => adminDisable2faMutation.mutate(t.id)} title="Desactivar 2FA (recuperación)" className="text-muted-foreground hover:text-priority-medium" disabled={adminDisable2faMutation.isPending}>
+                        <Button variant="ghost" size="icon" onClick={() => adminDisable2faMutation.mutate(t.id)} title="Resetear 2FA (recuperación)" className="text-muted-foreground hover:text-priority-medium" disabled={adminDisable2faMutation.isPending}>
                           <ShieldOff className="h-4 w-4" />
                         </Button>
                       )}
@@ -232,6 +254,11 @@ export function TechniciansPage() {
                                 <ShieldCheck className="h-3 w-3" />2FA
                               </Badge>
                             )}
+                            {!t.twoFactorEnabled && t.twoFactorRequired && (
+                              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-400">
+                                <ShieldAlert className="h-3 w-3" />2FA Requerido
+                              </Badge>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{formatDate(t.createdAt)}</td>
@@ -243,8 +270,20 @@ export function TechniciansPage() {
                                 <LockKeyholeOpen className="h-4 w-4" />
                               </Button>
                             )}
+                            {t.id !== me?.id && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => requireTotpMutation.mutate({ id: t.id, required: !t.twoFactorRequired })}
+                                title={t.twoFactorRequired ? 'Quitar exigencia de 2FA' : 'Forzar 2FA'}
+                                className={t.twoFactorRequired ? 'text-amber-600 hover:text-amber-700' : 'text-muted-foreground hover:text-amber-600'}
+                                disabled={requireTotpMutation.isPending}
+                              >
+                                <ShieldAlert className="h-4 w-4" />
+                              </Button>
+                            )}
                             {t.twoFactorEnabled && t.id !== me?.id && (
-                              <Button variant="ghost" size="icon" onClick={() => adminDisable2faMutation.mutate(t.id)} title="Desactivar 2FA (recuperación)" className="text-muted-foreground hover:text-priority-medium" disabled={adminDisable2faMutation.isPending}>
+                              <Button variant="ghost" size="icon" onClick={() => adminDisable2faMutation.mutate(t.id)} title="Resetear 2FA (recuperación)" className="text-muted-foreground hover:text-priority-medium" disabled={adminDisable2faMutation.isPending}>
                                 <ShieldOff className="h-4 w-4" />
                               </Button>
                             )}

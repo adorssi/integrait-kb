@@ -55,11 +55,19 @@ export const AuthService = {
       await TechnicianRepository.resetFailedAttempts(technician.id);
     }
 
-    // Credenciales válidas — si tiene 2FA habilitado, devolver token temporal
+    // Credenciales válidas: verificar estado de 2FA
     if (technician.twoFactorEnabled) {
+      // Tiene 2FA configurado — pedir código del autenticador
       const tempPayload = { sub: technician.id, email: technician.email, role: technician.role, scope: 'totp-verify' };
       const tempToken = jwt.sign(tempPayload, getJwtSecret(), { expiresIn: '5m' } as jwt.SignOptions);
       return { requiresTwoFactor: true, tempToken };
+    }
+
+    if (technician.twoFactorRequired) {
+      // El admin exige 2FA pero aún no está configurado — forzar setup antes de acceder
+      const tempPayload = { sub: technician.id, email: technician.email, role: technician.role, scope: 'totp-setup' };
+      const tempToken = jwt.sign(tempPayload, getJwtSecret(), { expiresIn: '10m' } as jwt.SignOptions);
+      return { requiresTotpSetup: true, tempToken };
     }
 
     return AuthService._buildAuthResponse(technician.id, technician.email, technician.role as Role, toPublic(technician));
@@ -123,6 +131,51 @@ export const AuthService = {
     if (!result.valid) throw new AppError(401, 'Código incorrecto.');
 
     await TechnicianRepository.disableTotp(technicianId);
+  },
+
+  /**
+   * Devuelve los datos de setup (QR + secret) para el flujo de 2FA forzado.
+   * Solo acepta tokens con scope 'totp-setup' (emitidos cuando el admin exige 2FA).
+   */
+  async setupTotpForced(tempToken: string): Promise<ITotpSetupData> {
+    let payload: IAuthPayload;
+    try {
+      payload = jwt.verify(tempToken, getJwtSecret()) as IAuthPayload;
+    } catch {
+      throw new AppError(401, 'Token expirado. Iniciá sesión nuevamente.');
+    }
+    if (payload.scope !== 'totp-setup') throw new AppError(401, 'Token inválido.');
+
+    const technician = await TechnicianRepository.findById(payload.sub);
+    if (!technician || !technician.active) throw new AppError(401, 'Cuenta no disponible.');
+
+    const secret = generateSecret();
+    const otpauthUrl = generateURI({ strategy: 'totp', issuer: TOTP_APP_NAME, label: technician.email, secret });
+    const qrDataUrl = await qrcode.toDataURL(otpauthUrl, { width: 220, margin: 2 });
+    return { secret, qrDataUrl, otpauthUrl };
+  },
+
+  /**
+   * Verifica el primer código TOTP en el flujo forzado, activa 2FA y devuelve el JWT final.
+   */
+  async enableTotpForced(tempToken: string, secret: string, code: string): Promise<IAuthResponse> {
+    let payload: IAuthPayload;
+    try {
+      payload = jwt.verify(tempToken, getJwtSecret()) as IAuthPayload;
+    } catch {
+      throw new AppError(401, 'Token expirado. Iniciá sesión nuevamente.');
+    }
+    if (payload.scope !== 'totp-setup') throw new AppError(401, 'Token inválido.');
+
+    const technician = await TechnicianRepository.findById(payload.sub);
+    if (!technician || !technician.active) throw new AppError(401, 'Cuenta no disponible.');
+
+    const result = await totpVerify({ strategy: 'totp', secret, token: code });
+    if (!result.valid) throw new AppError(401, 'Código incorrecto. Verificá que escaneaste el QR correctamente.');
+
+    await TechnicianRepository.enableTotp(technician.id, encrypt(secret));
+    const updated = await TechnicianRepository.findById(technician.id);
+    return AuthService._buildAuthResponse(technician.id, technician.email, technician.role as Role, toPublic(updated!));
   },
 
   /** Deshabilita el 2FA de cualquier técnico (solo para admins — recuperación). */

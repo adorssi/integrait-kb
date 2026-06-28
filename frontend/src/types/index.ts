@@ -25,6 +25,7 @@ export interface Technician {
   active: boolean;
   lockedUntil: string | null;
   twoFactorEnabled: boolean;
+  twoFactorRequired: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,7 +37,8 @@ export interface AuthResponse {
 
 export type LoginResponse =
   | AuthResponse
-  | { requiresTwoFactor: true; tempToken: string };
+  | { requiresTwoFactor: true; tempToken: string }
+  | { requiresTotpSetup: true; tempToken: string };
 
 export interface TotpSetupData {
   secret: string;

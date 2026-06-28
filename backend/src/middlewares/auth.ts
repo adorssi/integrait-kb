@@ -29,7 +29,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     const payload = jwt.verify(token, secret) as IAuthPayload;
 
     // Tokens temporales de 2FA no son válidos para endpoints protegidos normales
-    if (payload.scope === 'totp-verify') {
+    if (payload.scope === 'totp-verify' || payload.scope === 'totp-setup') {
       return next(new AppError(401, 'Token inválido o expirado'));
     }
 

@@ -148,10 +148,56 @@ curl -X POST http://localhost:3000/auth/login \
 
 ### DELETE /technicians/:id/2fa
 
-**Descripción:** Desactiva el 2FA de cualquier técnico sin requerir código (recuperación de acceso).
+**Descripción:** Resetea el 2FA de cualquier técnico sin requerir código (recuperación de acceso). Los técnicos no pueden desactivar su propio 2FA; solo el admin puede hacerlo.
 **Auth:** Bearer JWT. Roles: ADMIN únicamente.
 
 **Respuestas:** `200` / `403` / `404`
+
+---
+
+### PATCH /technicians/:id/require-2fa
+
+**Descripción:** Activa o desactiva la exigencia de 2FA para un técnico. Si se activa y el técnico no tiene 2FA configurado, será redirigido al setup obligatorio en su próximo login.
+**Auth:** Bearer JWT. Roles: ADMIN únicamente.
+
+**Request body:**
+```json
+{ "required": true }
+```
+
+**Respuestas:** `200` con datos del técnico actualizados / `403` / `404`
+
+---
+
+### POST /auth/2fa/setup-forced
+
+**Descripción:** Genera QR y secreto para el flujo de setup obligatorio de 2FA. Solo acepta el `tempToken` emitido en `/auth/login` cuando el admin requiere 2FA (`requiresTotpSetup: true`).
+**Auth:** No requerida (usa `tempToken` en body).
+
+**Request body:**
+```json
+{ "tempToken": "string" }
+```
+
+**Respuestas:** `200` con `{ secret, qrDataUrl, otpauthUrl }` / `401` (token inválido o expirado)
+
+---
+
+### POST /auth/2fa/enable-forced
+
+**Descripción:** Verifica el primer código TOTP en el flujo forzado, activa el 2FA y devuelve el JWT final para acceder al sistema.
+**Auth:** No requerida (usa `tempToken` en body).
+
+**Request body:**
+```json
+{
+  "tempToken": "string",
+  "secret": "string (el secret recibido en /2fa/setup-forced)",
+  "code": "string (6 dígitos)"
+}
+```
+
+**Respuestas:** `200` con JWT y datos del técnico / `401` (código incorrecto o token expirado)
 
 ---
 
