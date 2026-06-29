@@ -28,6 +28,12 @@ export interface BackupJob {
   occurredAt: string;
   rawSubject: string;
   createdAt: string;
+  startTime: string | null;
+  endTime: string | null;
+  dataSize: string | null;
+  dataRead: string | null;
+  dataTransferred: string | null;
+  duration: string | null;
 }
 
 export interface SyncResult {

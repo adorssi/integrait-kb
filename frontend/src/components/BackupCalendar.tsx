@@ -220,15 +220,60 @@ export function BackupCalendar({ clientId }: Props) {
 
                   {/* Tooltip al hacer hover o tap */}
                   {isActive && dayJobs.length > 0 && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 w-64 rounded-md border bg-popover shadow-lg p-2 text-xs pointer-events-none">
-                      <p className="font-semibold mb-1">{day} de {MONTHS[month - 1]}</p>
-                      <div className="space-y-1">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 rounded-md border bg-popover shadow-lg p-2 text-xs pointer-events-none"
+                      style={{ width: dayJobs.some(j => j.startTime) ? '22rem' : '16rem' }}>
+                      <p className="font-semibold mb-2">{day} de {MONTHS[month - 1]}</p>
+                      <div className="space-y-2">
                         {dayJobs.map((j) => (
-                          <div key={j.id} className="flex items-center gap-2">
-                            <span className={`px-1 rounded text-[9px] font-semibold ${RESULT_STYLES[j.result]}`}>
-                              {RESULT_LABEL[j.result]}
-                            </span>
-                            <span className="truncate text-muted-foreground">{j.taskName}</span>
+                          <div key={j.id}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`px-1 rounded text-[9px] font-semibold shrink-0 ${RESULT_STYLES[j.result]}`}>
+                                {RESULT_LABEL[j.result]}
+                              </span>
+                              <span className="truncate text-muted-foreground font-medium">{j.taskName}</span>
+                            </div>
+                            {(j.startTime || j.duration || j.dataSize) && (
+                              <table className="w-full text-[10px] border-collapse">
+                                <tbody>
+                                  {(j.startTime || j.endTime) && (
+                                    <tr className="border-t border-border/50">
+                                      <td className="py-0.5 pr-2 text-muted-foreground w-1/2">Inicio</td>
+                                      <td className="py-0.5 pr-2 text-muted-foreground w-1/2">Fin</td>
+                                    </tr>
+                                  )}
+                                  {(j.startTime || j.endTime) && (
+                                    <tr>
+                                      <td className="pb-1 pr-2 font-mono">{j.startTime ?? '—'}</td>
+                                      <td className="pb-1 pr-2 font-mono">{j.endTime ?? '—'}</td>
+                                    </tr>
+                                  )}
+                                  {(j.dataSize || j.dataRead || j.dataTransferred || j.duration) && (
+                                    <tr className="border-t border-border/50">
+                                      <td className="py-0.5 pr-2 text-muted-foreground">Tamaño</td>
+                                      <td className="py-0.5 pr-2 text-muted-foreground">Leído</td>
+                                    </tr>
+                                  )}
+                                  {(j.dataSize || j.dataRead) && (
+                                    <tr>
+                                      <td className="pb-1 pr-2 font-mono">{j.dataSize ?? '—'}</td>
+                                      <td className="pb-1 pr-2 font-mono">{j.dataRead ?? '—'}</td>
+                                    </tr>
+                                  )}
+                                  {(j.dataTransferred || j.duration) && (
+                                    <tr className="border-t border-border/50">
+                                      <td className="py-0.5 pr-2 text-muted-foreground">Transferido</td>
+                                      <td className="py-0.5 pr-2 text-muted-foreground">Duración</td>
+                                    </tr>
+                                  )}
+                                  {(j.dataTransferred || j.duration) && (
+                                    <tr>
+                                      <td className="pb-0.5 pr-2 font-mono">{j.dataTransferred ?? '—'}</td>
+                                      <td className="pb-0.5 pr-2 font-mono">{j.duration ?? '—'}</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            )}
                           </div>
                         ))}
                       </div>

@@ -56,6 +56,12 @@ export const BackupRepository = {
     occurredAt: Date;
     rawSubject: string;
     messageUid: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    dataSize?: string | null;
+    dataRead?: string | null;
+    dataTransferred?: string | null;
+    duration?: string | null;
   }) {
     return prisma.backupJob.create({ data });
   },

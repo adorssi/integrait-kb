@@ -274,15 +274,22 @@ model IncidentAttachment {
 }
 
 model BackupJob {
-  id         String       @id @default(uuid())
-  client     Client?      @relation(fields: [clientId], references: [id])
-  clientId   String?      // null si no hay match con ningún cliente
-  taskName   String
-  result     BackupResult
-  occurredAt DateTime
-  rawSubject String
-  messageUid String?      @unique // UID IMAP — evita importar el mismo email dos veces
-  createdAt  DateTime     @default(now())
+  id              String       @id @default(uuid())
+  client          Client?      @relation(fields: [clientId], references: [id])
+  clientId        String?      // null si no hay match con ningún cliente
+  taskName        String
+  result          BackupResult
+  occurredAt      DateTime
+  rawSubject      String
+  messageUid      String?      @unique // UID IMAP — evita importar el mismo email dos veces
+  // Campos de la sección Details del email de Veeam (opcionales — solo en emails nuevos)
+  startTime       String?
+  endTime         String?
+  dataSize        String?
+  dataRead        String?
+  dataTransferred String?
+  duration        String?
+  createdAt       DateTime     @default(now())
 }
 
 enum Role {

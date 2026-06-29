@@ -116,6 +116,12 @@ export const BackupService = {
         occurredAt: email.occurredAt,
         rawSubject: email.rawSubject,
         messageUid: email.messageUid,
+        startTime:       email.detail?.startTime ?? null,
+        endTime:         email.detail?.endTime ?? null,
+        dataSize:        email.detail?.dataSize ?? null,
+        dataRead:        email.detail?.dataRead ?? null,
+        dataTransferred: email.detail?.dataTransferred ?? null,
+        duration:        email.detail?.duration ?? null,
       });
       imported++;
     }
