@@ -63,7 +63,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex items-center gap-2 overflow-hidden">
               <Monitor className="h-5 w-5 shrink-0 text-primary" />
-              <span className="truncate text-sm font-semibold">IT Knowledge</span>
+              <span className="truncate text-sm font-semibold">Integra IT SRL</span>
             </div>
           )}
           {collapsed && <Monitor className="h-5 w-5 text-primary" />}

@@ -111,7 +111,7 @@ export function ClientsPage() {
           </Button>
           {isAdmin && (
             <Button onClick={openCreate} className="flex-1 sm:hidden">
-              <Plus className="h-4 w-4" />Nuevo cliente
+              <Plus className="h-4 w-4" />Cliente
             </Button>
           )}
         </div>

@@ -451,7 +451,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
                   </Button>
                 )}
                 <Button size="sm" className="flex-1" onClick={openCreateCam}>
-                  <Plus className="h-4 w-4" />+ Cámara
+                  <Plus className="h-4 w-4" />Cámara
                 </Button>
                 <Button
                   size="sm"
