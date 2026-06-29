@@ -138,22 +138,26 @@ export function BranchesTab({ clientId, equipment = [] }: { clientId: string; eq
               <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  className="flex items-center gap-2 text-left flex-1"
+                  className="flex items-start gap-2 text-left flex-1 min-w-0"
                   onClick={() => toggle(branch.id)}
                 >
-                  {expanded.has(branch.id)
-                    ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">{branch.name}</span>
-                  {branch.address && <span className="text-xs text-muted-foreground">{branch.address}</span>}
-                  {branch.dynamicIp
-                    ? <Badge variant="outline" className="text-xs">IP dinámica</Badge>
-                    : branch.publicIp && <Badge variant="outline" className="font-mono text-xs">{branch.publicIp}</Badge>}
-                  {branch.isp && <span className="text-xs text-muted-foreground">{branch.isp}</span>}
-                  <Badge variant="secondary" className="text-xs">
-                    {branch.segments.length} VLAN{branch.segments.length !== 1 ? 's' : ''}
-                  </Badge>
+                  <span className="mt-0.5 shrink-0">
+                    {expanded.has(branch.id)
+                      ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  </span>
+                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+                    <span className="font-medium text-sm">{branch.name}</span>
+                    {branch.address && <span className="text-xs text-muted-foreground">{branch.address}</span>}
+                    {branch.dynamicIp
+                      ? <Badge variant="outline" className="text-xs">IP dinámica</Badge>
+                      : branch.publicIp && <Badge variant="outline" className="font-mono text-xs">{branch.publicIp}</Badge>}
+                    {branch.isp && <span className="text-xs text-muted-foreground">{branch.isp}</span>}
+                    <Badge variant="secondary" className="text-xs">
+                      {branch.segments.length} VLAN{branch.segments.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
                 </button>
                 <div className="flex items-center gap-1">
                   <Button type="button" variant="ghost" size="icon" onClick={() => openEditBranch(branch)}>
@@ -183,12 +187,18 @@ export function BranchesTab({ clientId, equipment = [] }: { clientId: string; eq
                   {branch.segments.length === 0 ? (
                     <p className="text-xs text-muted-foreground pl-1">Sin segmentos registrados</p>
                   ) : (
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm table-fixed">
+                      <colgroup>
+                        <col className="w-24" />
+                        <col />
+                        <col className="hidden sm:table-column w-40" />
+                        <col className="w-16" />
+                      </colgroup>
                       <thead>
                         <tr className="text-xs text-muted-foreground border-b">
                           <th className="text-left py-1">VLAN</th>
                           <th className="text-left py-1">Rango</th>
-                          <th className="text-left py-1">Descripción</th>
+                          <th className="text-left py-1 hidden sm:table-cell">Descripción</th>
                           <th />
                         </tr>
                       </thead>
@@ -200,8 +210,8 @@ export function BranchesTab({ clientId, equipment = [] }: { clientId: string; eq
                                 ? <Badge variant="secondary" className="font-mono text-xs">VLAN {seg.vlan}</Badge>
                                 : <span className="text-muted-foreground text-xs">—</span>}
                             </td>
-                            <td className="py-1.5 font-mono text-xs text-primary">{seg.networkRange}</td>
-                            <td className="py-1.5 text-xs text-muted-foreground">{seg.description ?? '—'}</td>
+                            <td className="py-1.5 font-mono text-xs text-primary break-all">{seg.networkRange}</td>
+                            <td className="py-1.5 text-xs text-muted-foreground hidden sm:table-cell">{seg.description ?? '—'}</td>
                             <td className="py-1.5">
                               <div className="flex items-center gap-1 justify-end">
                                 <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditSegment(branch.id, seg)}>

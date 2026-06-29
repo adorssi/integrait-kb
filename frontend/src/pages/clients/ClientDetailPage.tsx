@@ -1054,14 +1054,14 @@ export function ClientDetailPage() {
       {/* Tab: Documentos */}
       {tab === 'documents' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="relative max-w-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input type="search" placeholder="Buscar documento..." className="pl-9" value={docSearch} onChange={e => setDocSearch(e.target.value)} />
+              <Input type="search" placeholder="Buscar documento..." className="pl-9 w-full sm:w-72" value={docSearch} onChange={e => setDocSearch(e.target.value)} />
             </div>
             <div className="flex items-center gap-2">
               {uploadDocMutation.isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              <Button size="sm" onClick={() => docUploadRef.current?.click()} disabled={uploadDocMutation.isPending}>
+              <Button size="sm" className="flex-1 sm:flex-none" onClick={() => docUploadRef.current?.click()} disabled={uploadDocMutation.isPending}>
                 <Upload className="h-4 w-4" />Subir documento
               </Button>
               <input ref={docUploadRef} type="file" className="hidden"
