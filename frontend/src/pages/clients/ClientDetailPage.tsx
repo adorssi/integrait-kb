@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Pencil, Trash2, Phone, Mail, AlertCircle, HardDrive, Download, Upload, Key, Eye, EyeOff, Loader2, Search, Wifi, FileText, Lock, Globe } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Phone, Mail, AlertCircle, HardDrive, Download, Upload, Key, Eye, EyeOff, Loader2, Search, Wifi, FileText, Lock, Globe, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -195,6 +195,19 @@ export function ClientDetailPage() {
   const [eqSearch, setEqSearch] = useState('');
   const [eqBranchFilter, setEqBranchFilter] = useState<string>('all');
   const [eqOsFilter, setEqOsFilter] = useState<string>('all');
+  const [eqFiltersOpen, setEqFiltersOpen] = useState(false);
+  const [eqImportDropdownOpen, setEqImportDropdownOpen] = useState(false);
+  const eqImportDropdownRef = useRef<HTMLDivElement>(null);
+
+  const closeEqImportDropdown = useCallback((e: MouseEvent) => {
+    if (eqImportDropdownRef.current && !eqImportDropdownRef.current.contains(e.target as Node)) {
+      setEqImportDropdownOpen(false);
+    }
+  }, []);
+  useEffect(() => {
+    if (eqImportDropdownOpen) document.addEventListener('mousedown', closeEqImportDropdown);
+    return () => document.removeEventListener('mousedown', closeEqImportDropdown);
+  }, [eqImportDropdownOpen, closeEqImportDropdown]);
 
   // Contact state
   const [editContact, setEditContact] = useState<Contact | null>(null);
@@ -675,54 +688,126 @@ export function ClientDetailPage() {
       {/* Tab: Equipos */}
       {tab === 'equipment' && (
         <div className="space-y-4">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex gap-2 flex-wrap">
-              <Button size="sm" variant="outline" onClick={() => exportEquipmentTemplate(client.name)}>
-                <Download className="h-4 w-4" />Template Excel
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => exportEquipmentData(client.equipment ?? [], client.name)} disabled={allEquipment.length === 0}>
-                <Download className="h-4 w-4" />Exportar datos
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => eqImportRef.current?.click()} disabled={importEqMutation.isPending}>
-                <Upload className="h-4 w-4" />{importEqMutation.isPending ? 'Importando...' : 'Importar Excel'}
-              </Button>
-              <input ref={eqImportRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleEqImport} />
-            </div>
-            <Button size="sm" onClick={openCreateEq}><Plus className="h-4 w-4" />Agregar equipo</Button>
-          </div>
+          {/* Toolbar — importar dropdown compartido entre mobile y desktop */}
+          {(() => {
+            const hasActiveFilters = !!(eqSearch || eqBranchFilter !== 'all' || eqOsFilter !== 'all');
+            const showFilterPanel = eqFiltersOpen || hasActiveFilters;
 
-          {/* Filtros */}
-          <div className="flex gap-2 flex-wrap items-center">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input type="search" placeholder="Buscar nombre o IP..." className="pl-9 w-52" value={eqSearch} onChange={e => setEqSearch(e.target.value)} autoComplete="off" />
-            </div>
-            {branches.length > 0 && (
-              <Select value={eqBranchFilter} onValueChange={setEqBranchFilter}>
-                <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todas las sucursales" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las sucursales</SelectItem>
-                  <SelectItem value="none">Sin sucursal</SelectItem>
-                  {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
-            {uniqueOsList.length > 0 && (
-              <Select value={eqOsFilter} onValueChange={setEqOsFilter}>
-                <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todos los SO" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los SO</SelectItem>
-                  {uniqueOsList.map(os => <SelectItem key={os} value={os}>{os}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
-            {(eqSearch || eqBranchFilter !== 'all' || eqOsFilter !== 'all') && (
-              <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setEqSearch(''); setEqBranchFilter('all'); setEqOsFilter('all'); }}>
-                Limpiar filtros
-              </Button>
-            )}
-          </div>
+            const importDropdown = (
+              <div ref={eqImportDropdownRef} className="relative">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEqImportDropdownOpen(o => !o)}
+                  disabled={importEqMutation.isPending}
+                  className="w-full sm:w-auto"
+                >
+                  <Upload className="h-4 w-4" />
+                  {importEqMutation.isPending ? 'Importando...' : 'Importar'}
+                  <ChevronDown className="h-3 w-3 ml-0.5 opacity-60" />
+                </Button>
+                {eqImportDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-20 min-w-[185px] rounded-md border bg-popover shadow-md py-1 text-sm">
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                      onClick={() => { exportEquipmentTemplate(client.name); setEqImportDropdownOpen(false); }}
+                    >
+                      <Download className="h-3.5 w-3.5 text-muted-foreground" />Descargar template
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                      onClick={() => { eqImportRef.current?.click(); setEqImportDropdownOpen(false); }}
+                    >
+                      <Upload className="h-3.5 w-3.5 text-muted-foreground" />Seleccionar archivo
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+
+            const filterPanel = (
+              <div className="flex gap-2 flex-wrap items-center">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input type="search" placeholder="Buscar nombre o IP..." className="pl-9 w-52" value={eqSearch} onChange={e => setEqSearch(e.target.value)} autoComplete="off" />
+                </div>
+                {branches.length > 0 && (
+                  <Select value={eqBranchFilter} onValueChange={setEqBranchFilter}>
+                    <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todas las sucursales" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las sucursales</SelectItem>
+                      <SelectItem value="none">Sin sucursal</SelectItem>
+                      {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                {uniqueOsList.length > 0 && (
+                  <Select value={eqOsFilter} onValueChange={setEqOsFilter}>
+                    <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todos los SO" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los SO</SelectItem>
+                      {uniqueOsList.map(os => <SelectItem key={os} value={os}>{os}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                {hasActiveFilters && (
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setEqSearch(''); setEqBranchFilter('all'); setEqOsFilter('all'); }}>
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
+            );
+
+            return (
+              <>
+                {/* Mobile: 2 filas */}
+                <div className="flex flex-col gap-2 sm:hidden">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => exportEquipmentData(client.equipment ?? [], client.name)} disabled={allEquipment.length === 0}>
+                      <Download className="h-4 w-4" />Exportar datos
+                    </Button>
+                    <div className="flex-1">{importDropdown}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1" onClick={openCreateEq}>
+                      <Plus className="h-4 w-4" />Agregar equipo
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 relative"
+                      onClick={() => setEqFiltersOpen(o => !o)}
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      Filtros
+                      {hasActiveFilters && (
+                        <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </Button>
+                  </div>
+                  {showFilterPanel && <div>{filterPanel}</div>}
+                </div>
+
+                {/* Desktop: 1 fila */}
+                <div className="hidden sm:flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => exportEquipmentData(client.equipment ?? [], client.name)} disabled={allEquipment.length === 0}>
+                      <Download className="h-4 w-4" />Exportar datos
+                    </Button>
+                    {importDropdown}
+                  </div>
+                  <Button size="sm" onClick={openCreateEq}><Plus className="h-4 w-4" />Agregar equipo</Button>
+                </div>
+
+                {/* Filtros siempre visibles en desktop */}
+                <div className="hidden sm:block">{filterPanel}</div>
+              </>
+            );
+          })()}
+
+          <input ref={eqImportRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleEqImport} />
 
           {eqImportResult && (
             <div className={`rounded-md px-3 py-2 text-sm ${eqImportResult.errors.length > 0 ? 'bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200' : 'bg-green-50 dark:bg-green-950/20 border border-green-200'}`}>
