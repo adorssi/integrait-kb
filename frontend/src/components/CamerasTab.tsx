@@ -446,21 +446,20 @@ export function CamerasTab({ clientId, clientName }: Props) {
               </div>
               <div className="flex gap-2">
                 {isAdmin && (
-                  <Button size="sm" variant="outline" onClick={openCreateNvr} className="shrink-0 px-3">
-                    <Server className="h-4 w-4" />
+                  <Button size="sm" variant="outline" onClick={openCreateNvr} className="shrink-0">
+                    <Server className="h-4 w-4" />+ NVR
                   </Button>
                 )}
                 <Button size="sm" className="flex-1" onClick={openCreateCam}>
-                  <Plus className="h-4 w-4" />Nueva cámara
+                  <Plus className="h-4 w-4" />+ Cámara
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex-1 relative"
+                  className="shrink-0 relative px-3"
                   onClick={() => setCamFiltersOpen(o => !o)}
                 >
                   <SlidersHorizontal className="h-4 w-4" />
-                  Filtros
                   {hasActiveFilters && (
                     <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
                   )}
