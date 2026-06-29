@@ -74,51 +74,79 @@ function cellText(html: string): string {
 }
 
 /**
- * Busca la tabla "Details" en el HTML del email de Veeam y devuelve los datos
- * de la primera fila de datos (o null si no encuentra nada).
+ * Extrae todas las celdas del HTML como pares planos [label, value, label, value, ...]
+ * y busca los campos de Veeam por nombre de etiqueta.
  *
- * La tabla tiene cabeceras: Name | Status | Start time | End time | Size | Read | Transferred | Duration
- * Índices fijos:              0      1          2           3        4      5         6             7
+ * Soporta dos formatos de email de Veeam:
+ *   A) Tabla clásica: cabecera en la primera fila, valores en la segunda
+ *      Name | Status | Start time | End time | Size | Read | Transferred | Duration
+ *   B) Layout horizontal label/valor por pares en la misma fila
+ *      "Start time" | "19:30:13" | "Total size" | "1,5 TB" | ...
  */
 export function parseVeeamDetails(html: string): VeeamJobDetail | null {
   if (!html) return null;
 
-  // Localizar la sección "Details" en el HTML
-  const detailsMatch = html.search(/Details/i);
-  if (detailsMatch === -1) return null;
+  // Extraer todas las celdas del HTML completo (no solo la sección Details)
+  const allCells = [...html.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+    .map((c) => cellText(c[1]))
+    .filter((c) => c.length > 0);
 
-  const afterDetails = html.slice(detailsMatch);
+  if (allCells.length === 0) return null;
 
-  // Extraer todas las filas <tr>...</tr> que aparecen después de "Details"
-  const rowPattern = /<tr[\s\S]*?>([\s\S]*?)<\/tr>/gi;
-  const rows: string[][] = [];
+  // Mapa de etiquetas conocidas de Veeam → campo destino
+  const labelMap: Record<string, keyof VeeamJobDetail> = {
+    'start time':   'startTime',
+    'end time':     'endTime',
+    'total size':   'dataSize',
+    'size':         'dataSize',
+    'read':         'dataRead',
+    'backup size':  'dataTransferred',
+    'transferred':  'dataTransferred',
+    'duration':     'duration',
+  };
 
-  let m: RegExpExecArray | null;
-  while ((m = rowPattern.exec(afterDetails)) !== null) {
-    const cells = [...m[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
-      .map((c) => cellText(c[1]));
-    if (cells.length > 0) rows.push(cells);
-    // Con 2 filas (encabezado + 1 dato) ya tenemos suficiente
-    if (rows.length >= 10) break;
+  const result: VeeamJobDetail = {
+    startTime: null, endTime: null, dataSize: null,
+    dataRead: null, dataTransferred: null, duration: null,
+  };
+
+  // Estrategia 1: buscar etiquetas conocidas y tomar el valor en la celda siguiente
+  for (let i = 0; i < allCells.length - 1; i++) {
+    const key = labelMap[allCells[i].toLowerCase()];
+    if (key && result[key] === null) {
+      const val = allCells[i + 1];
+      // El valor no debe ser otra etiqueta conocida ni estar vacío
+      if (val && !labelMap[val.toLowerCase()]) {
+        result[key] = val;
+      }
+    }
   }
 
-  // La primera fila suele ser el encabezado; buscamos la primera fila de datos
-  // con al menos 7 columnas que NO sea la cabecera
-  const headerKeywords = /^(name|status|start|end|size|read|transferred|duration)$/i;
-  const dataRow = rows.find(
-    (row) => row.length >= 7 && !headerKeywords.test(row[0]),
-  );
+  // Estrategia 2 (formato tabla clásica): buscar fila con ≥7 celdas que NO sean etiquetas
+  if (!result.startTime && !result.duration) {
+    const rowPattern = /<tr[\s\S]*?>([\s\S]*?)<\/tr>/gi;
+    const rows: string[][] = [];
+    let m: RegExpExecArray | null;
+    while ((m = rowPattern.exec(html)) !== null) {
+      const cells = [...m[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+        .map((c) => cellText(c[1]));
+      if (cells.length >= 7) rows.push(cells);
+      if (rows.length >= 20) break;
+    }
+    const headerKw = /^(name|status|start time|end time|size|read|transferred|duration|total size|backup size)$/i;
+    const dataRow = rows.find((r) => !headerKw.test(r[0]) && r[0].length > 0);
+    if (dataRow) {
+      result.startTime       ??= dataRow[2] ?? null;
+      result.endTime         ??= dataRow[3] ?? null;
+      result.dataSize        ??= dataRow[4] ?? null;
+      result.dataRead        ??= dataRow[5] ?? null;
+      result.dataTransferred ??= dataRow[6] ?? null;
+      result.duration        ??= dataRow[7] ?? null;
+    }
+  }
 
-  if (!dataRow) return null;
-
-  return {
-    startTime:       dataRow[2] ?? null,
-    endTime:         dataRow[3] ?? null,
-    dataSize:        dataRow[4] ?? null,
-    dataRead:        dataRow[5] ?? null,
-    dataTransferred: dataRow[6] ?? null,
-    duration:        dataRow[7] ?? null,
-  };
+  const hasAny = Object.values(result).some((v) => v !== null);
+  return hasAny ? result : null;
 }
 
 export async function fetchBackupEmails(since?: Date): Promise<ParsedEmail[]> {
