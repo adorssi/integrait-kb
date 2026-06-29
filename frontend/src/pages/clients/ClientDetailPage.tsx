@@ -729,9 +729,9 @@ export function ClientDetailPage() {
 
             const filterPanel = (
               <div className="flex gap-2 flex-wrap items-center">
-                <div className="relative">
+                <div className="relative w-full sm:w-auto">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input type="search" placeholder="Buscar nombre o IP..." className="pl-9 w-52" value={eqSearch} onChange={e => setEqSearch(e.target.value)} autoComplete="off" />
+                  <Input type="search" placeholder="Buscar nombre o IP..." className="pl-9 w-full sm:w-52" value={eqSearch} onChange={e => setEqSearch(e.target.value)} autoComplete="off" />
                 </div>
                 {branches.length > 0 && (
                   <Select value={eqBranchFilter} onValueChange={setEqBranchFilter}>
@@ -743,14 +743,17 @@ export function ClientDetailPage() {
                     </SelectContent>
                   </Select>
                 )}
+                {/* Filtro de SO: solo en desktop */}
                 {uniqueOsList.length > 0 && (
-                  <Select value={eqOsFilter} onValueChange={setEqOsFilter}>
-                    <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todos los SO" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos los SO</SelectItem>
-                      {uniqueOsList.map(os => <SelectItem key={os} value={os}>{os}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <div className="hidden sm:block">
+                    <Select value={eqOsFilter} onValueChange={setEqOsFilter}>
+                      <SelectTrigger className="w-44 bg-background"><SelectValue placeholder="Todos los SO" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los SO</SelectItem>
+                        {uniqueOsList.map(os => <SelectItem key={os} value={os}>{os}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
                 {hasActiveFilters && (
                   <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setEqSearch(''); setEqBranchFilter('all'); setEqOsFilter('all'); }}>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Eye, EyeOff, Pencil, Trash2, ChevronDown, ChevronRight, Key, Loader2, Server, Camera as CameraIcon, Download, Upload } from 'lucide-react';
+import { Plus, Search, Eye, EyeOff, Pencil, Trash2, ChevronDown, ChevronRight, Key, Loader2, Server, Camera as CameraIcon, Download, Upload, SlidersHorizontal } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -286,6 +286,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
 
   const [search, setSearch] = useState('');
   const [filterNvrId, setFilterNvrId] = useState<string>('all');
+  const [camFiltersOpen, setCamFiltersOpen] = useState(false);
   const [expandedNvrs, setExpandedNvrs] = useState<Set<string>>(new Set());
 
   // NVR form state
@@ -373,32 +374,22 @@ export function CamerasTab({ clientId, clientName }: Props) {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="space-y-2">
-        {/* Search + filter + primary actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[160px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input type="search" placeholder="Buscar cámara o IP..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
-          </div>
-          <Select value={filterNvrId} onValueChange={setFilterNvrId}>
-            <SelectTrigger className="w-40 bg-background"><SelectValue placeholder="Todos los NVRs" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los NVRs</SelectItem>
-              <SelectItem value="none">Sin NVR</SelectItem>
-              {nvrs.map(n => <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Button size="sm" variant="outline" onClick={openCreateNvr} className="shrink-0"><Server className="h-4 w-4" />Nuevo NVR</Button>
-          <Button size="sm" onClick={openCreateCam} className="shrink-0"><Plus className="h-4 w-4" />Nueva cámara</Button>
-        </div>
-        {/* Exportar + Importar */}
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => exportCamerasData(cameras, clientName)} disabled={cameras.length === 0}>
-            <Download className="h-4 w-4" />Exportar datos
-          </Button>
+      {(() => {
+        const hasActiveFilters = search || filterNvrId !== 'all';
+        const showFilterPanel = camFiltersOpen || !!hasActiveFilters;
+
+        const importDropdown = (
           <div ref={importDropdownRef} className="relative">
-            <Button size="sm" variant="outline" onClick={() => setImportDropdownOpen(o => !o)} disabled={importCamMutation.isPending}>
-              <Upload className="h-4 w-4" />{importCamMutation.isPending ? 'Importando...' : 'Importar'}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setImportDropdownOpen(o => !o)}
+              disabled={importCamMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              <Upload className="h-4 w-4" />
+              {importCamMutation.isPending ? 'Importando...' : 'Importar'}
+              <ChevronDown className="h-3 w-3 ml-0.5 opacity-60" />
             </Button>
             {importDropdownOpen && (
               <div className="absolute left-0 top-full mt-1 z-20 min-w-[180px] rounded-md border bg-popover shadow-md py-1 text-sm">
@@ -419,9 +410,85 @@ export function CamerasTab({ clientId, clientName }: Props) {
               </div>
             )}
           </div>
-          <input ref={importFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
-        </div>
-      </div>
+        );
+
+        const filterPanel = (
+          <div className="flex gap-2 flex-wrap items-center">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" placeholder="Buscar cámara o IP..." className="pl-9 w-full sm:w-56" value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
+            </div>
+            <Select value={filterNvrId} onValueChange={setFilterNvrId}>
+              <SelectTrigger className="w-40 bg-background"><SelectValue placeholder="Todos los NVRs" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los NVRs</SelectItem>
+                <SelectItem value="none">Sin NVR</SelectItem>
+                {nvrs.map(n => <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {hasActiveFilters && (
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setSearch(''); setFilterNvrId('all'); }}>
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
+        );
+
+        return (
+          <div className="space-y-2">
+            {/* Mobile: 2 filas */}
+            <div className="flex flex-col gap-2 sm:hidden">
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => exportCamerasData(cameras, clientName)} disabled={cameras.length === 0}>
+                  <Download className="h-4 w-4" />Exportar datos
+                </Button>
+                <div className="flex-1">{importDropdown}</div>
+              </div>
+              <div className="flex gap-2">
+                {isAdmin && (
+                  <Button size="sm" variant="outline" onClick={openCreateNvr} className="shrink-0 px-3">
+                    <Server className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button size="sm" className="flex-1" onClick={openCreateCam}>
+                  <Plus className="h-4 w-4" />Nueva cámara
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 relative"
+                  onClick={() => setCamFiltersOpen(o => !o)}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filtros
+                  {hasActiveFilters && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </Button>
+              </div>
+              {showFilterPanel && <div>{filterPanel}</div>}
+            </div>
+
+            {/* Desktop: layout original reorganizado */}
+            <div className="hidden sm:flex items-center justify-between flex-wrap gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={() => exportCamerasData(cameras, clientName)} disabled={cameras.length === 0}>
+                  <Download className="h-4 w-4" />Exportar datos
+                </Button>
+                {importDropdown}
+              </div>
+              <div className="flex gap-2">
+                {isAdmin && (
+                  <Button size="sm" variant="outline" onClick={openCreateNvr}><Server className="h-4 w-4" />Nuevo NVR</Button>
+                )}
+                <Button size="sm" onClick={openCreateCam}><Plus className="h-4 w-4" />Nueva cámara</Button>
+              </div>
+            </div>
+            <div className="hidden sm:block">{filterPanel}</div>
+          </div>
+        );
+      })()}
+      <input ref={importFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
 
       {importResult && (
         <div className={`rounded-md px-3 py-2 text-sm ${importResult.errors.length > 0 ? 'bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200' : 'bg-green-50 dark:bg-green-950/20 border border-green-200'}`}>
