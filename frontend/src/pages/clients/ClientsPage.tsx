@@ -44,8 +44,8 @@ export function ClientsPage() {
   const debouncedSearch = useDebounce(search, 300);
 
   const { data: allClients = [], isLoading } = useQuery({
-    queryKey: ['clients', debouncedSearch],
-    queryFn: () => clientsService.list(debouncedSearch || undefined),
+    queryKey: ['clients', debouncedSearch, showInactive],
+    queryFn: () => clientsService.list(debouncedSearch || undefined, showInactive || undefined),
   });
 
   const clients = showInactive ? allClients : allClients.filter((c) => c.active);

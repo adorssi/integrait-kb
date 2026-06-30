@@ -5,8 +5,10 @@ import {
 } from '@/types';
 
 export const clientsService = {
-  async list(search?: string): Promise<Client[]> {
-    const { data } = await api.get<ApiResponse<Client[]>>('/clients', { params: { search } });
+  async list(search?: string, includeInactive?: boolean): Promise<Client[]> {
+    const { data } = await api.get<ApiResponse<Client[]>>('/clients', {
+      params: { search, ...(includeInactive ? { includeInactive: true } : {}) },
+    });
     return data.data;
   },
 

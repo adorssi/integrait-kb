@@ -39,13 +39,15 @@ const infrastructureSchema = z.object({
 
 const listQuerySchema = z.object({
   search: z.string().max(255).optional(),
+  includeInactive: z.coerce.boolean().optional(),
 });
 
 export const ClientController = {
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { search } = listQuerySchema.parse(req.query);
-      const clients = await ClientService.list({ search });
+      const { search, includeInactive } = listQuerySchema.parse(req.query);
+      const filters = { search, ...(includeInactive ? { active: false as const } : {}) };
+      const clients = await ClientService.list(filters);
       res.json({ data: clients });
     } catch (err) {
       next(err);

@@ -4,7 +4,10 @@ import { ICreateClientDTO, IUpdateClientDTO, IClientFilters } from '../models/ty
 
 export const ClientRepository = {
   async findAll(filters: IClientFilters = {}): Promise<Client[]> {
-    const where: Prisma.ClientWhereInput = { active: true };
+    const where: Prisma.ClientWhereInput = {};
+
+    // Si no se pide explícitamente incluir inactivos, mostrar solo activos
+    if (filters.active !== false) where.active = true;
 
     if (filters.search) {
       where.name = { contains: filters.search, mode: 'insensitive' };
