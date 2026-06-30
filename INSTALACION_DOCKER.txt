@@ -1,0 +1,204 @@
+================================================================================
+  INTEGRA IT — INSTALACIÓN EN SERVIDOR CON DOCKER
+================================================================================
+
+REQUISITOS PREVIOS
+------------------
+- Ubuntu 22.04 LTS (o Debian 12) con acceso root o sudo
+- Al menos 2 GB de RAM y 10 GB de disco libre
+- Conexión a internet para descargar imágenes
+
+
+--------------------------------------------------------------------------------
+PASO 1 — INSTALAR DOCKER Y DOCKER COMPOSE
+--------------------------------------------------------------------------------
+
+  sudo apt update && sudo apt upgrade -y
+
+  # Instalar dependencias
+  sudo apt install -y ca-certificates curl gnupg
+
+  # Agregar repositorio oficial de Docker
+  sudo install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  sudo apt update
+  sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+  # Permitir usar Docker sin sudo (requiere cerrar sesión y volver a entrar)
+  sudo usermod -aG docker $USER
+
+  # Verificar instalación
+  docker --version
+  docker compose version
+
+
+--------------------------------------------------------------------------------
+PASO 2 — COPIAR EL PROYECTO AL SERVIDOR
+--------------------------------------------------------------------------------
+
+  Desde tu máquina local, copiá la carpeta del proyecto al servidor:
+
+  scp -r "/ruta/local/Sistema IT" usuario@IP_DEL_SERVIDOR:/home/usuario/integrait
+
+  O si usás Git:
+
+  git clone https://github.com/adorssi/integrait-kb.git integrait
+  cd integrait
+  git checkout feat/docker     # (mientras no se mergee a main)
+
+
+--------------------------------------------------------------------------------
+PASO 3 — CONFIGURAR VARIABLES DE ENTORNO
+--------------------------------------------------------------------------------
+
+  En la raíz del proyecto (donde está docker-compose.yml), creá el archivo .env:
+
+  cp .env.example .env
+  nano .env
+
+  Completar cada valor:
+
+  DB_USER=integrait
+  DB_PASSWORD=<password seguro para la base de datos>
+
+  JWT_SECRET=<generar con el comando de abajo>
+  # Comando para generar JWT_SECRET:
+  # node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+  GMAIL_EMAIL=tu-cuenta@gmail.com
+  GMAIL_APP_PASSWORD=<contraseña de aplicación de Gmail (16 caracteres)>
+  GMAIL_SYNC_CRON=0 */4 * * *
+  GMAIL_SYNC_DAYS=90
+
+  ENCRYPTION_KEY=<generar con el comando de abajo>
+  # Comando para generar ENCRYPTION_KEY:
+  # node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+  IMPORTANTE: Guardar una copia segura de ENCRYPTION_KEY.
+  Si se pierde, las credenciales cifradas (NVRs, camaras, etc.) son irrecuperables.
+
+
+--------------------------------------------------------------------------------
+PASO 4 — LEVANTAR LOS CONTENEDORES
+--------------------------------------------------------------------------------
+
+  Desde la carpeta del proyecto (donde está docker-compose.yml):
+
+  docker compose up -d --build
+
+  Esto va a:
+  1. Construir la imagen del backend (Node.js + TypeScript)
+  2. Construir la imagen del frontend (React + Nginx)
+  3. Descargar la imagen de PostgreSQL 16
+  4. Levantar los tres contenedores: db, backend, frontend
+  5. Ejecutar automáticamente las migraciones de base de datos
+  6. Crear el usuario admin inicial (admin@empresa.com / Admin1234!)
+
+  El frontend queda expuesto en el puerto 80 del servidor.
+  Nginx actúa como servidor del SPA y proxy inverso hacia el backend.
+
+
+--------------------------------------------------------------------------------
+PASO 5 — VERIFICAR QUE TODO FUNCIONA
+--------------------------------------------------------------------------------
+
+  # Ver estado de los contenedores
+  docker compose ps
+
+  # Ver logs de todos los servicios
+  docker compose logs -f
+
+  # Ver logs solo del backend
+  docker compose logs -f backend
+
+  # Debería aparecer algo como:
+  # backend | Servidor corriendo en puerto 3000
+  # backend | Cron de sincronización de backups activado
+
+  Abrir en el navegador:  http://IP_DEL_SERVIDOR
+
+  Login inicial:
+    Email:    admin@empresa.com
+    Password: Admin1234!
+
+  Cambiar el password del admin en el primer login.
+
+
+--------------------------------------------------------------------------------
+PASO 6 — COMANDOS DE OPERACIÓN DIARIA
+--------------------------------------------------------------------------------
+
+  # Parar todos los servicios
+  docker compose down
+
+  # Reiniciar un servicio específico (por ejemplo tras actualizar código)
+  docker compose restart backend
+
+  # Actualizar la aplicación con nuevo código
+  git pull
+  docker compose up -d --build
+
+  # Ver uso de recursos
+  docker stats
+
+  # Acceder a la base de datos directamente
+  docker compose exec db psql -U integrait -d it_knowledge_base
+
+
+--------------------------------------------------------------------------------
+PASO 7 — BACKUP DE LA BASE DE DATOS (RECOMENDADO)
+--------------------------------------------------------------------------------
+
+  # Exportar un backup
+  docker compose exec db pg_dump -U integrait it_knowledge_base > backup_$(date +%Y%m%d).sql
+
+  # Restaurar un backup
+  docker compose exec -T db psql -U integrait it_knowledge_base < backup_YYYYMMDD.sql
+
+  Para automatizar backups diarios, agregar al cron del servidor:
+  0 2 * * * cd /home/usuario/integrait && docker compose exec -T db pg_dump -U integrait it_knowledge_base > /backups/db_$(date +\%Y\%m\%d).sql
+
+
+--------------------------------------------------------------------------------
+ESTRUCTURA DE CONTENEDORES
+--------------------------------------------------------------------------------
+
+  [Usuario / Navegador]
+         |
+         | puerto 80
+         v
+  [frontend — Nginx]
+    - Sirve el SPA (React)
+    - /api/*  → proxy a backend:3000
+    - /uploads/* → proxy a backend:3000
+         |
+         v
+  [backend — Node.js]
+    - API REST en puerto 3000
+    - Maneja autenticación JWT
+    - Sincronización de backups via Gmail IMAP
+         |
+         v
+  [db — PostgreSQL 16]
+    - Puerto interno 5432 (no expuesto al exterior)
+    - Datos persistidos en volumen Docker: postgres_data
+
+
+--------------------------------------------------------------------------------
+NOTAS DE SEGURIDAD
+--------------------------------------------------------------------------------
+
+  - El puerto 5432 de PostgreSQL NO está expuesto al exterior (solo interno entre contenedores).
+  - El backend en puerto 3000 tampoco está expuesto directamente (solo accesible via Nginx).
+  - Solo el puerto 80 (frontend/Nginx) es accesible desde fuera.
+  - Si se necesita HTTPS, configurar Nginx con certificado SSL o usar un reverse proxy
+    externo (Caddy, Traefik, o Nginx adicional) delante del contenedor frontend.
+
+================================================================================
