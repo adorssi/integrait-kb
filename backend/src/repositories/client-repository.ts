@@ -59,4 +59,8 @@ export const ClientRepository = {
   async deactivate(id: string): Promise<Client> {
     return prisma.client.update({ where: { id }, data: { active: false } });
   },
+
+  async reactivate(id: string): Promise<Client> {
+    return prisma.client.update({ where: { id }, data: { active: true } });
+  },
 };

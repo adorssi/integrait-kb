@@ -56,4 +56,9 @@ export const ClientService = {
     await ClientService.getById(id);
     return ClientRepository.deactivate(id);
   },
+
+  async reactivate(id: string): Promise<Client> {
+    await ClientService.getById(id);
+    return ClientRepository.reactivate(id);
+  },
 };

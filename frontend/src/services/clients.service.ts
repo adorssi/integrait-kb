@@ -50,6 +50,11 @@ export const clientsService = {
     return data.data;
   },
 
+  async reactivate(id: string): Promise<Client> {
+    const { data } = await api.patch<ApiResponse<Client>>(`/clients/${id}/reactivate`);
+    return data.data;
+  },
+
   // Equipos
   async listEquipment(clientId: string): Promise<Equipment[]> {
     const { data } = await api.get<ApiResponse<Equipment[]>>(`/clients/${clientId}/equipment`);

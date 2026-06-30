@@ -32,6 +32,7 @@ router.post('/', requireRole(Role.ADMIN), ClientController.create);
 router.put('/:id', requireRole(Role.ADMIN), ClientController.update);
 router.patch('/:id/infrastructure', ClientController.updateInfrastructure);
 router.patch('/:id/deactivate', requireRole(Role.ADMIN), ClientController.deactivate);
+router.patch('/:id/reactivate', requireRole(Role.ADMIN), ClientController.reactivate);
 
 // Equipos (anidados bajo cliente) — cualquier usuario autenticado puede gestionar
 router.get('/:clientId/equipment', EquipmentController.list);

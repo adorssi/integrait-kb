@@ -108,4 +108,13 @@ export const ClientController = {
       next(err);
     }
   },
+
+  async reactivate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const client = await ClientService.reactivate(req.params.id);
+      res.json({ data: client });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

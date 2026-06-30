@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Eye, Pencil, Building2, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Search, Eye, Pencil, Building2, RefreshCw, Loader2, PowerOff, Power } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -37,14 +37,18 @@ export function ClientsPage() {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const [search, setSearch] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const [editTarget, setEditTarget] = useState<Client | null>(null);
   const [creating, setCreating] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<Client | null>(null);
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: clients = [], isLoading } = useQuery({
+  const { data: allClients = [], isLoading } = useQuery({
     queryKey: ['clients', debouncedSearch],
     queryFn: () => clientsService.list(debouncedSearch || undefined),
   });
+
+  const clients = showInactive ? allClients : allClients.filter((c) => c.active);
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
@@ -86,6 +90,16 @@ export function ClientsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['clients'] }); closeForm(); },
   });
 
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) => clientsService.deactivate(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['clients'] }); setConfirmTarget(null); },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: (id: string) => clientsService.reactivate(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['clients'] }); setConfirmTarget(null); },
+  });
+
   const openCreate = () => { reset({ name: '', city: '', rut: '', phone: '', email: '', address: '', notes: '', servicePlan: '', contractStart: '', contractEnd: '' }); setCreating(true); };
   const openEdit = (c: Client) => { setEditTarget(c); reset({ name: c.name, city: c.city, rut: c.rut ?? '', phone: c.phone ?? '', email: c.email ?? '', address: c.address ?? '', notes: c.notes ?? '', servicePlan: c.servicePlan ?? '', contractStart: c.contractStart?.slice(0, 10) ?? '', contractEnd: c.contractEnd?.slice(0, 10) ?? '' }); };
   const closeForm = () => { setCreating(false); setEditTarget(null); reset(); };
@@ -98,7 +112,10 @@ export function ClientsPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Clientes</h1>
-            <p className="text-muted-foreground">{clients.length} clientes activos</p>
+            <p className="text-muted-foreground">
+              {allClients.filter((c) => c.active).length} clientes activos
+              {allClients.some((c) => !c.active) && ` · ${allClients.filter((c) => !c.active).length} inactivos`}
+            </p>
           </div>
           {isAdmin && (
             <Button onClick={openCreate} className="shrink-0 hidden sm:flex">
@@ -132,9 +149,16 @@ export function ClientsPage() {
         </div>
       )}
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Buscar por nombre..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative max-w-sm flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Buscar por nombre..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        {allClients.some((c) => !c.active) && (
+          <Button variant={showInactive ? 'secondary' : 'outline'} size="sm" onClick={() => setShowInactive((v) => !v)}>
+            {showInactive ? 'Ocultar inactivos' : 'Mostrar inactivos'}
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -148,7 +172,7 @@ export function ClientsPage() {
               {/* Mobile: cards */}
               <div className="block sm:hidden divide-y">
                 {clients.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
+                  <div key={c.id} className={`flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors ${!c.active ? 'opacity-60' : ''}`}>
                     <button className="flex-1 text-left min-w-0" onClick={() => navigate(`/clients/${c.id}`)}>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium truncate">{c.name}</span>
@@ -157,8 +181,13 @@ export function ClientsPage() {
                       <p className="text-sm text-muted-foreground mt-0.5">{c.city}</p>
                     </button>
                     <div className="flex gap-1 shrink-0 ml-2">
-                      <Button variant="ghost" size="icon" onClick={() => navigate(`/clients/${c.id}`)} title="Ver detalle"><Eye className="h-4 w-4" /></Button>
-                      {isAdmin && <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-4 w-4" /></Button>}
+                      <Button variant="ghost" size="icon" onClick={() => navigate(`/clients/${c.id}`)}><Eye className="h-4 w-4" /></Button>
+                      {isAdmin && <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>}
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" onClick={() => setConfirmTarget(c)} title={c.active ? 'Desactivar' : 'Reactivar'}>
+                          {c.active ? <PowerOff className="h-4 w-4 text-destructive" /> : <Power className="h-4 w-4 text-green-600" />}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -175,7 +204,7 @@ export function ClientsPage() {
                   </thead>
                   <tbody className="divide-y">
                     {clients.map((c) => (
-                      <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                      <tr key={c.id} className={`hover:bg-muted/30 transition-colors ${!c.active ? 'opacity-60' : ''}`}>
                         <td className="px-4 py-3 font-medium">{c.name}</td>
                         <td className="px-4 py-3 text-muted-foreground">{c.city}</td>
                         <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{c.rut}</td>
@@ -185,6 +214,11 @@ export function ClientsPage() {
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" onClick={() => navigate(`/clients/${c.id}`)} title="Ver detalle"><Eye className="h-4 w-4" /></Button>
                             {isAdmin && <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Editar"><Pencil className="h-4 w-4" /></Button>}
+                            {isAdmin && (
+                              <Button variant="ghost" size="icon" onClick={() => setConfirmTarget(c)} title={c.active ? 'Desactivar' : 'Reactivar'}>
+                                {c.active ? <PowerOff className="h-4 w-4 text-destructive" /> : <Power className="h-4 w-4 text-green-600" />}
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -232,6 +266,37 @@ export function ClientsPage() {
               <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar'}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación de desactivar / reactivar */}
+      <Dialog open={!!confirmTarget} onOpenChange={() => setConfirmTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmTarget?.active ? 'Desactivar cliente' : 'Reactivar cliente'}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {confirmTarget?.active
+              ? <>¿Desactivar a <strong>{confirmTarget?.name}</strong>? El cliente dejará de aparecer en la lista y no podrá tener nuevos incidentes asignados. Esta acción es reversible.</>
+              : <>¿Reactivar a <strong>{confirmTarget?.name}</strong>? El cliente volverá a estar disponible en el sistema.</>}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmTarget(null)}>Cancelar</Button>
+            <Button
+              variant={confirmTarget?.active ? 'destructive' : 'default'}
+              disabled={deactivateMutation.isPending || reactivateMutation.isPending}
+              onClick={() => {
+                if (!confirmTarget) return;
+                if (confirmTarget.active) deactivateMutation.mutate(confirmTarget.id);
+                else reactivateMutation.mutate(confirmTarget.id);
+              }}
+            >
+              {(deactivateMutation.isPending || reactivateMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
+              {confirmTarget?.active ? 'Desactivar' : 'Reactivar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
