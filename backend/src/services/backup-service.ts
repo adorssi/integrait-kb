@@ -146,16 +146,20 @@ export const BackupService = {
 
     // --- Paso 3: rellenar jobMessage en jobs importados antes de que existiera el campo ---
     const nullMessageJobs = await BackupRepository.findWithNullJobMessage();
+    console.log(`[sync paso 3] jobs con jobMessage=null: ${nullMessageJobs.length}`);
     if (nullMessageJobs.length > 0) {
       const uids = nullMessageJobs.map((j) => j.messageUid);
+      console.log(`[sync paso 3] UIDs a re-parsear: ${uids.slice(0, 10).join(', ')}${uids.length > 10 ? '...' : ''}`);
       try {
         const parsed = await reparseJobMessages(uids);
+        console.log(`[sync paso 3] jobMessages encontrados: ${parsed.size}`);
+        parsed.forEach((msg, uid) => console.log(`  uid=${uid} → ${msg.substring(0, 80)}`));
         for (const job of nullMessageJobs) {
           const msg = parsed.get(job.messageUid);
           if (msg) await BackupRepository.updateJobMessage(job.id, msg);
         }
-      } catch {
-        // No interrumpir la sync si falla el re-parseo
+      } catch (e) {
+        console.error('[sync paso 3] error en re-parseo:', e instanceof Error ? e.message : e);
       }
     }
 

@@ -309,21 +309,28 @@ export async function reparseJobMessages(
   });
 
   try {
+    console.log(`[reparseJobMessages] conectando IMAP para ${uids.length} UIDs...`);
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
     try {
       const numericUids = uids.map(Number).filter(Boolean);
+      console.log(`[reparseJobMessages] fetching ${numericUids.length} mensajes`);
       for await (const msg of client.fetch(numericUids, { source: true }, { uid: true })) {
         if (!msg.source) continue;
         try {
           const mail = await simpleParser(msg.source);
           const html = (mail.html || mail.textAsHtml || '').toString();
+          // Log de celdas para diagnóstico
+          const cells = [...html.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+            .map((c) => cellText(c[1])).filter((c) => c.length > 0);
+          console.log(`[reparse uid=${msg.uid}] ${cells.length} celdas:`, JSON.stringify(cells.slice(0, 40)));
           const detail = parseVeeamDetails(html);
+          console.log(`[reparse uid=${msg.uid}] jobMessage=`, detail?.jobMessage);
           if (detail?.jobMessage) {
             result.set(String(msg.uid), detail.jobMessage);
           }
-        } catch {
-          // ignorar errores de parseo individuales
+        } catch (e) {
+          console.error(`[reparse uid=${msg.uid}] error:`, e instanceof Error ? e.message : e);
         }
       }
     } finally {
