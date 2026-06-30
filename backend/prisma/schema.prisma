@@ -289,6 +289,7 @@ model BackupJob {
   dataRead        String?
   dataTransferred String?
   duration        String?
+  failureReason   String?      // Motivo de fallo (solo en emails con result FAILURE/WARNING)
   createdAt       DateTime     @default(now())
 }
 

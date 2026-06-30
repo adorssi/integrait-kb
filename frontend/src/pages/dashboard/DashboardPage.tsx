@@ -56,6 +56,16 @@ function BackupDetailPanel({ c }: { c: ClientBackupStatus }) {
           Sin detalles disponibles — se poblarán en la próxima sincronización.
         </p>
       )}
+      {c.failureReason && (
+        <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 space-y-0.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-destructive">
+            Motivo del fallo
+          </span>
+          <p className="text-xs text-destructive/90 whitespace-pre-line leading-relaxed">
+            {c.failureReason}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

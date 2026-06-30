@@ -9,6 +9,7 @@ export interface VeeamJobDetail {
   dataRead: string | null;
   dataTransferred: string | null;
   duration: string | null;
+  failureReason: string | null;
 }
 
 export interface ParsedEmail {
@@ -107,7 +108,7 @@ export function parseVeeamDetails(html: string): VeeamJobDetail | null {
 
   const result: VeeamJobDetail = {
     startTime: null, endTime: null, dataSize: null,
-    dataRead: null, dataTransferred: null, duration: null,
+    dataRead: null, dataTransferred: null, duration: null, failureReason: null,
   };
 
   // Estrategia 1: buscar etiquetas conocidas y tomar el valor en la celda siguiente
@@ -145,8 +146,43 @@ export function parseVeeamDetails(html: string): VeeamJobDetail | null {
     }
   }
 
+  // Parsear motivo de fallo (aparece como celda "Reason" o párrafo suelto en el cuerpo)
+  result.failureReason = parseFailureReason(html, allCells);
+
   const hasAny = Object.values(result).some((v) => v !== null);
   return hasAny ? result : null;
+}
+
+/**
+ * Extrae el motivo de fallo de un email de Veeam.
+ * Estrategia 1: buscar etiqueta "Reason" (celda o encabezado) y tomar el texto siguiente.
+ * Estrategia 2: buscar bloques de texto (<p>, <div>, <td>) que contengan mensajes de error típicos.
+ * Estrategia 3: buscar párrafos de texto libre fuera de tablas al final del email.
+ */
+function parseFailureReason(html: string, allCells: string[]): string | null {
+  // Estrategia 1: celda etiquetada "Reason" o "Error" → siguiente celda
+  const reasonIdx = allCells.findIndex((c) => /^reason[s]?$/i.test(c) || /^error[s]?$/i.test(c));
+  if (reasonIdx !== -1 && reasonIdx < allCells.length - 1) {
+    const val = allCells[reasonIdx + 1];
+    // Valor válido: no es otra etiqueta común, tiene cierta longitud
+    if (val && val.length > 3 && !/^(name|status|start|end|size|read|transferred|duration|success|warning|failed|failure)$/i.test(val)) {
+      return val;
+    }
+  }
+
+  // Estrategia 2: buscar bloques <p> o <div> con texto de error fuera de tablas
+  // Elimina todo el contenido de las tablas primero
+  const noTables = html.replace(/<table[\s\S]*?<\/table>/gi, '');
+  const blocks = [...noTables.matchAll(/<(?:p|div|span|li)[^>]*>([\s\S]*?)<\/(?:p|div|span|li)>/gi)]
+    .map((m) => cellText(m[1]))
+    .filter((t) => t.length > 10 && t.length < 2000);
+
+  // Buscar texto que parezca un error: contiene palabras clave típicas de fallo de Veeam
+  const errorPattern = /\b(failed|error|timeout|timed out|cannot|unable|repository|access denied|permission|disk|space|connection|certificate|agent)\b/i;
+  const candidate = blocks.find((b) => errorPattern.test(b) && b.length > 15);
+  if (candidate) return candidate;
+
+  return null;
 }
 
 export async function fetchBackupEmails(since?: Date): Promise<ParsedEmail[]> {
