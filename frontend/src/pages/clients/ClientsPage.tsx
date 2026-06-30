@@ -114,7 +114,7 @@ export function ClientsPage() {
             <h1 className="text-2xl font-bold">Clientes</h1>
             <p className="text-muted-foreground">
               {allClients.filter((c) => c.active).length} clientes activos
-              {allClients.some((c) => !c.active) && ` · ${allClients.filter((c) => !c.active).length} inactivos`}
+              {showInactive && allClients.some((c) => !c.active) && ` · ${allClients.filter((c) => !c.active).length} inactivos`}
             </p>
           </div>
           {isAdmin && (
@@ -154,7 +154,7 @@ export function ClientsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Buscar por nombre..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        {allClients.some((c) => !c.active) && (
+        {isAdmin && (
           <Button variant={showInactive ? 'secondary' : 'outline'} size="sm" onClick={() => setShowInactive((v) => !v)}>
             {showInactive ? 'Ocultar inactivos' : 'Mostrar inactivos'}
           </Button>
