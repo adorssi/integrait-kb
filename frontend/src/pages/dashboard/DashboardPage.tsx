@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Building2, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Building2, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { backupsService } from '@/services/backups.service';
+import { backupsService, ClientBackupStatus } from '@/services/backups.service';
 import { formatDateTime } from '@/lib/utils';
 
 const STAT_CARDS = [
@@ -21,9 +22,48 @@ function BackupDot({ result }: { result: 'SUCCESS' | 'WARNING' | 'FAILURE' | nul
   return <span className="inline-block h-2.5 w-2.5 rounded-full bg-muted-foreground/30" title="Sin datos" />;
 }
 
+function DetailCell({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className="font-mono text-xs font-medium">{value}</span>
+    </div>
+  );
+}
+
+function BackupDetailPanel({ c }: { c: ClientBackupStatus }) {
+  const hasDetails = c.startTime || c.endTime || c.dataSize || c.dataRead || c.dataTransferred || c.duration;
+
+  return (
+    <div className="bg-muted/30 border-t px-4 py-3 space-y-2">
+      {c.taskName && (
+        <p className="text-xs font-medium text-muted-foreground">
+          Tarea: <span className="text-foreground font-semibold">{c.taskName}</span>
+        </p>
+      )}
+      {hasDetails ? (
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          <DetailCell label="Inicio"       value={c.startTime} />
+          <DetailCell label="Fin"          value={c.endTime} />
+          <DetailCell label="Duración"     value={c.duration} />
+          <DetailCell label="Tamaño"       value={c.dataSize} />
+          <DetailCell label="Leído"        value={c.dataRead} />
+          <DetailCell label="Transferido"  value={c.dataTransferred} />
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground italic">
+          Sin detalles disponibles — se poblarán en la próxima sincronización.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { technician } = useAuth();
   const navigate = useNavigate();
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
 
   const { data: backupStatus } = useQuery({
     queryKey: ['backup-status'],
@@ -36,6 +76,9 @@ export function DashboardPage() {
     queryFn: backupsService.allClientsStatus,
     staleTime: 5 * 60 * 1000,
   });
+
+  const toggle = (clientId: string) =>
+    setExpandedClientId((prev) => (prev === clientId ? null : clientId));
 
   return (
     <div className="space-y-6">
@@ -80,33 +123,59 @@ export function DashboardPage() {
               <thead className="border-b bg-muted/40">
                 <tr>
                   <th className="px-4 py-2 text-left font-medium text-muted-foreground w-8"></th>
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground w-6"></th>
                   <th className="px-4 py-2 text-left font-medium text-muted-foreground">Cliente</th>
                   <th className="px-4 py-2 text-left font-medium text-muted-foreground">Estado</th>
                   <th className="px-4 py-2 text-left font-medium text-muted-foreground">Último backup</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {allClientsStatus.map((c) => (
-                  <tr
-                    key={c.clientId}
-                    className="hover:bg-muted/30 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/clients/${c.clientId}?tab=backups`)}
-                  >
-                    <td className="px-4 py-2.5">
-                      <BackupDot result={c.result} />
-                    </td>
-                    <td className="px-4 py-2.5 font-medium">{c.clientName}</td>
-                    <td className="px-4 py-2.5">
-                      {c.result === 'SUCCESS' && <Badge variant="success">OK</Badge>}
-                      {c.result === 'WARNING' && <Badge variant="warning">Advertencia</Badge>}
-                      {c.result === 'FAILURE' && <Badge variant="destructive">Fallido</Badge>}
-                      {!c.result && <Badge variant="outline">Sin datos</Badge>}
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground text-xs">
-                      {c.occurredAt ? formatDateTime(c.occurredAt) : '—'}
-                    </td>
-                  </tr>
-                ))}
+              <tbody>
+                {allClientsStatus.map((c) => {
+                  const isExpanded = expandedClientId === c.clientId;
+                  return (
+                    <>
+                      <tr
+                        key={c.clientId}
+                        className="border-b hover:bg-muted/30 transition-colors cursor-pointer select-none"
+                        onClick={() => toggle(c.clientId)}
+                      >
+                        <td className="px-4 py-2.5">
+                          <BackupDot result={c.result} />
+                        </td>
+                        <td className="px-2 py-2.5 text-muted-foreground">
+                          {isExpanded
+                            ? <ChevronDown className="h-3.5 w-3.5" />
+                            : <ChevronRight className="h-3.5 w-3.5" />}
+                        </td>
+                        <td className="px-4 py-2.5 font-medium">
+                          <button
+                            type="button"
+                            className="hover:underline text-left"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/clients/${c.clientId}?tab=backups`); }}
+                          >
+                            {c.clientName}
+                          </button>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {c.result === 'SUCCESS' && <Badge variant="success">OK</Badge>}
+                          {c.result === 'WARNING' && <Badge variant="warning">Advertencia</Badge>}
+                          {c.result === 'FAILURE' && <Badge variant="destructive">Fallido</Badge>}
+                          {!c.result && <Badge variant="outline">Sin datos</Badge>}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                          {c.occurredAt ? formatDateTime(c.occurredAt) : '—'}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${c.clientId}-detail`} className="border-b">
+                          <td colSpan={5} className="p-0">
+                            <BackupDetailPanel c={c} />
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           )}

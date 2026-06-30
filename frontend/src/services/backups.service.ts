@@ -11,6 +11,13 @@ export interface ClientBackupStatus {
   clientName: string;
   result: 'SUCCESS' | 'WARNING' | 'FAILURE' | null;
   occurredAt: string | null;
+  taskName: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  dataSize: string | null;
+  dataRead: string | null;
+  dataTransferred: string | null;
+  duration: string | null;
 }
 
 export interface FailedBackupClient {

@@ -115,18 +115,38 @@ export const BackupRepository = {
   },
 
   /**
-   * Devuelve todos los clientes activos con el resultado de su backup más reciente.
-   * Clientes sin ningún backup registrado aparecen con result=null.
+   * Devuelve todos los clientes activos con el resultado de su backup más reciente,
+   * incluyendo los campos de Details del email de Veeam.
+   * Clientes sin ningún backup registrado aparecen con result=null y campos null.
    */
   async findLatestPerClient(): Promise<
-    { clientId: string; clientName: string; result: string | null; occurredAt: Date | null }[]
+    {
+      clientId: string;
+      clientName: string;
+      result: string | null;
+      occurredAt: Date | null;
+      taskName: string | null;
+      startTime: string | null;
+      endTime: string | null;
+      dataSize: string | null;
+      dataRead: string | null;
+      dataTransferred: string | null;
+      duration: string | null;
+    }[]
   > {
     return prisma.$queryRaw`
       SELECT
-        c.id          AS "clientId",
-        c.name        AS "clientName",
-        bj.result     AS "result",
-        bj."occurredAt"
+        c.id                  AS "clientId",
+        c.name                AS "clientName",
+        bj.result             AS "result",
+        bj."occurredAt",
+        bj."taskName",
+        bj."startTime",
+        bj."endTime",
+        bj."dataSize",
+        bj."dataRead",
+        bj."dataTransferred",
+        bj."duration"
       FROM "Client" c
       LEFT JOIN "BackupJob" bj ON bj.id = (
         SELECT b2.id
