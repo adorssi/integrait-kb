@@ -63,6 +63,8 @@ export function ClientsPage() {
   const nullify = (v: string | undefined) => (v === '' ? null : v ?? null);
   const sanitizeForm = (d: ClientForm) => ({
     ...d,
+    rut: nullify(d.rut),
+    phone: nullify(d.phone),
     email: nullify(d.email),
     address: nullify(d.address),
     notes: nullify(d.notes),

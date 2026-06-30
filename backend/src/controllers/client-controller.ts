@@ -3,15 +3,19 @@ import { z } from 'zod';
 import { ClientService } from '../services/client-service';
 import { safeName, safeShortText, safeText, safeEmail } from '../utils/validators';
 
+// Convierte string vacío a null antes de validar (campos opcionales únicos como rut)
+const emptyToNull = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === '' ? null : v), schema);
+
 const createSchema = z.object({
   name: safeName,
   city: safeName,
-  rut: safeShortText.optional().nullable(),
-  phone: safeShortText.optional().nullable(),
-  email: safeEmail.optional().nullable(),
-  address: safeShortText.optional().nullable(),
-  notes: safeText.optional().nullable(),
-  servicePlan: safeShortText.optional().nullable(),
+  rut: emptyToNull(safeShortText.optional().nullable()),
+  phone: emptyToNull(safeShortText.optional().nullable()),
+  email: emptyToNull(safeEmail.optional().nullable()),
+  address: emptyToNull(safeShortText.optional().nullable()),
+  notes: emptyToNull(safeText.optional().nullable()),
+  servicePlan: emptyToNull(safeShortText.optional().nullable()),
   contractStart: z.coerce.date().optional().nullable(),
   contractEnd: z.coerce.date().optional().nullable(),
   hasBranches: z.boolean().optional(),
