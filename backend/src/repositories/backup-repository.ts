@@ -62,7 +62,7 @@ export const BackupRepository = {
     dataRead?: string | null;
     dataTransferred?: string | null;
     duration?: string | null;
-    failureReason?: string | null;
+    jobMessage?: string | null;
   }) {
     return prisma.backupJob.create({ data });
   },
@@ -133,7 +133,7 @@ export const BackupRepository = {
       dataRead: string | null;
       dataTransferred: string | null;
       duration: string | null;
-      failureReason: string | null;
+      jobMessage: string | null;
     }[]
   > {
     return prisma.$queryRaw`
@@ -149,7 +149,7 @@ export const BackupRepository = {
         bj."dataRead",
         bj."dataTransferred",
         bj."duration",
-        bj."failureReason"
+        bj."jobMessage"
       FROM "Client" c
       LEFT JOIN "BackupJob" bj ON bj.id = (
         SELECT b2.id

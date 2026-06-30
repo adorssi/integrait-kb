@@ -56,16 +56,32 @@ function BackupDetailPanel({ c }: { c: ClientBackupStatus }) {
           Sin detalles disponibles — se poblarán en la próxima sincronización.
         </p>
       )}
-      {c.failureReason && (
-        <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 space-y-0.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-destructive">
-            Motivo del fallo
-          </span>
-          <p className="text-xs text-destructive/90 whitespace-pre-line leading-relaxed">
-            {c.failureReason}
-          </p>
-        </div>
-      )}
+      {c.jobMessage && (() => {
+        const isError = c.result === 'FAILURE';
+        const isWarn  = c.result === 'WARNING';
+        return (
+          <div className={`mt-1 rounded-md border px-3 py-2 space-y-0.5 ${
+            isError ? 'border-destructive/30 bg-destructive/5'
+            : isWarn ? 'border-yellow-400/30 bg-yellow-400/5'
+            : 'border-border bg-muted/40'
+          }`}>
+            <span className={`text-[10px] font-semibold uppercase tracking-wide ${
+              isError ? 'text-destructive'
+              : isWarn ? 'text-yellow-600 dark:text-yellow-400'
+              : 'text-muted-foreground'
+            }`}>
+              {isError ? 'Motivo del fallo' : isWarn ? 'Advertencia' : 'Mensaje'}
+            </span>
+            <p className={`text-xs whitespace-pre-line leading-relaxed ${
+              isError ? 'text-destructive/90'
+              : isWarn ? 'text-yellow-700 dark:text-yellow-300'
+              : 'text-foreground'
+            }`}>
+              {c.jobMessage}
+            </p>
+          </div>
+        );
+      })()}
     </div>
   );
 }

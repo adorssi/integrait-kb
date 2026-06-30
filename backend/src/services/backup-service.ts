@@ -122,7 +122,7 @@ export const BackupService = {
         dataRead:        email.detail?.dataRead ?? null,
         dataTransferred: email.detail?.dataTransferred ?? null,
         duration:        email.detail?.duration ?? null,
-        failureReason:   email.detail?.failureReason ?? null,
+        jobMessage:   email.detail?.jobMessage ?? null,
       });
       imported++;
     }

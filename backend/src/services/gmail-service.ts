@@ -9,7 +9,7 @@ export interface VeeamJobDetail {
   dataRead: string | null;
   dataTransferred: string | null;
   duration: string | null;
-  failureReason: string | null;
+  jobMessage: string | null;
 }
 
 export interface ParsedEmail {
@@ -108,7 +108,7 @@ export function parseVeeamDetails(html: string): VeeamJobDetail | null {
 
   const result: VeeamJobDetail = {
     startTime: null, endTime: null, dataSize: null,
-    dataRead: null, dataTransferred: null, duration: null, failureReason: null,
+    dataRead: null, dataTransferred: null, duration: null, jobMessage: null,
   };
 
   // Estrategia 1: buscar etiquetas conocidas y tomar el valor en la celda siguiente
@@ -146,43 +146,50 @@ export function parseVeeamDetails(html: string): VeeamJobDetail | null {
     }
   }
 
-  // Parsear motivo de fallo (aparece como celda "Reason" o párrafo suelto en el cuerpo)
-  result.failureReason = parseFailureReason(html, allCells);
+  // Parsear mensaje del cuerpo del email (presente en SUCCESS, WARNING y FAILURE)
+  result.jobMessage = parseJobMessage(html, allCells);
 
   const hasAny = Object.values(result).some((v) => v !== null);
   return hasAny ? result : null;
 }
 
 /**
- * Extrae el motivo de fallo de un email de Veeam.
- * Estrategia 1: buscar etiqueta "Reason" (celda o encabezado) y tomar el texto siguiente.
- * Estrategia 2: buscar bloques de texto (<p>, <div>, <td>) que contengan mensajes de error típicos.
- * Estrategia 3: buscar párrafos de texto libre fuera de tablas al final del email.
+ * Extrae el mensaje significativo del cuerpo de un email de Veeam.
+ * Aplica para SUCCESS, WARNING y FAILURE — el cuerpo siempre puede tener info útil.
+ *
+ * Estrategia 1: celda etiquetada "Reason" o "Error" → toma la celda siguiente.
+ * Estrategia 2: párrafos fuera de tablas con keywords de Veeam (error, warning, timeout…).
+ * Estrategia 3: cualquier párrafo fuera de tablas con longitud mínima razonable.
  */
-function parseFailureReason(html: string, allCells: string[]): string | null {
+function parseJobMessage(html: string, allCells: string[]): string | null {
+  // Etiquetas que nunca son el mensaje real
+  const skipLabel = /^(name|status|start time|end time|total size|size|read|backup size|transferred|duration|success|warning|failed|failure)$/i;
+
   // Estrategia 1: celda etiquetada "Reason" o "Error" → siguiente celda
   const reasonIdx = allCells.findIndex((c) => /^reason[s]?$/i.test(c) || /^error[s]?$/i.test(c));
   if (reasonIdx !== -1 && reasonIdx < allCells.length - 1) {
     const val = allCells[reasonIdx + 1];
-    // Valor válido: no es otra etiqueta común, tiene cierta longitud
-    if (val && val.length > 3 && !/^(name|status|start|end|size|read|transferred|duration|success|warning|failed|failure)$/i.test(val)) {
+    if (val && val.length > 3 && !skipLabel.test(val)) {
       return val;
     }
   }
 
-  // Estrategia 2: buscar bloques <p> o <div> con texto de error fuera de tablas
-  // Elimina todo el contenido de las tablas primero
+  // Quita contenido de tablas para buscar en el resto del email
   const noTables = html.replace(/<table[\s\S]*?<\/table>/gi, '');
-  const blocks = [...noTables.matchAll(/<(?:p|div|span|li)[^>]*>([\s\S]*?)<\/(?:p|div|span|li)>/gi)]
+  const blocks = [...noTables.matchAll(/<(?:p|div|li)[^>]*>([\s\S]*?)<\/(?:p|div|li)>/gi)]
     .map((m) => cellText(m[1]))
-    .filter((t) => t.length > 10 && t.length < 2000);
+    .filter((t) => t.length > 15 && t.length < 2000 && !skipLabel.test(t));
 
-  // Buscar texto que parezca un error: contiene palabras clave típicas de fallo de Veeam
-  const errorPattern = /\b(failed|error|timeout|timed out|cannot|unable|repository|access denied|permission|disk|space|connection|certificate|agent)\b/i;
-  const candidate = blocks.find((b) => errorPattern.test(b) && b.length > 15);
-  if (candidate) return candidate;
+  if (blocks.length === 0) return null;
 
-  return null;
+  // Estrategia 2: preferir bloques con keywords de Veeam (aplica a WARNING y FAILURE)
+  const keywordPattern = /\b(failed|error|timeout|timed out|cannot|unable|repository|access denied|permission|disk|space|connection|certificate|agent|warning|script|threshold)\b/i;
+  const withKeyword = blocks.find((b) => keywordPattern.test(b));
+  if (withKeyword) return withKeyword;
+
+  // Estrategia 3: tomar el primer párrafo significativo (cubre SUCCESS con mensajes cortos)
+  const meaningful = blocks.find((b) => b.length > 20);
+  return meaningful ?? null;
 }
 
 export async function fetchBackupEmails(since?: Date): Promise<ParsedEmail[]> {

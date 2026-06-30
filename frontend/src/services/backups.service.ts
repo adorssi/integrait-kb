@@ -18,7 +18,7 @@ export interface ClientBackupStatus {
   dataRead: string | null;
   dataTransferred: string | null;
   duration: string | null;
-  failureReason: string | null;
+  jobMessage: string | null;
 }
 
 export interface FailedBackupClient {
@@ -42,7 +42,7 @@ export interface BackupJob {
   dataRead: string | null;
   dataTransferred: string | null;
   duration: string | null;
-  failureReason: string | null;
+  jobMessage: string | null;
 }
 
 export interface SyncResult {
