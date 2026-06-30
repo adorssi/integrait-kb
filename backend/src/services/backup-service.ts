@@ -1,5 +1,5 @@
 import { prisma } from '../utils/prisma';
-import { fetchBackupEmails, parseVeeamSubject } from './gmail-service';
+import { fetchBackupEmails, parseVeeamSubject, reparseJobMessages } from './gmail-service';
 import { BackupRepository } from '../repositories/backup-repository';
 
 export interface SyncResult {
@@ -141,6 +141,21 @@ export const BackupService = {
         unmatchedNames.delete(parsed.clientName);
       } else {
         unmatchedNames.add(parsed.clientName);
+      }
+    }
+
+    // --- Paso 3: rellenar jobMessage en jobs importados antes de que existiera el campo ---
+    const nullMessageJobs = await BackupRepository.findWithNullJobMessage();
+    if (nullMessageJobs.length > 0) {
+      const uids = nullMessageJobs.map((j) => j.messageUid);
+      try {
+        const parsed = await reparseJobMessages(uids);
+        for (const job of nullMessageJobs) {
+          const msg = parsed.get(job.messageUid);
+          if (msg) await BackupRepository.updateJobMessage(job.id, msg);
+        }
+      } catch {
+        // No interrumpir la sync si falla el re-parseo
       }
     }
 

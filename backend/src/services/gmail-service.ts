@@ -149,47 +149,78 @@ export function parseVeeamDetails(html: string): VeeamJobDetail | null {
   // Parsear mensaje del cuerpo del email (presente en SUCCESS, WARNING y FAILURE)
   result.jobMessage = parseJobMessage(html, allCells);
 
+  // DEBUG TEMPORAL — eliminar una vez confirmado el parser
+  if (!result.jobMessage) {
+    console.log('[DEBUG parseVeeamDetails] jobMessage=null — allCells:', JSON.stringify(allCells.slice(0, 30)));
+  }
+
   const hasAny = Object.values(result).some((v) => v !== null);
   return hasAny ? result : null;
 }
 
 /**
  * Extrae el mensaje significativo del cuerpo de un email de Veeam.
- * Aplica para SUCCESS, WARNING y FAILURE — el cuerpo siempre puede tener info útil.
+ * Aplica para SUCCESS, WARNING y FAILURE.
  *
- * Estrategia 1: celda etiquetada "Reason" o "Error" → toma la celda siguiente.
- * Estrategia 2: párrafos fuera de tablas con keywords de Veeam (error, warning, timeout…).
- * Estrategia 3: cualquier párrafo fuera de tablas con longitud mínima razonable.
+ * Los emails de Veeam son casi 100% tablas HTML, por lo que buscar "fuera de tablas"
+ * no funciona. En su lugar se analiza el contenido de las propias celdas.
+ *
+ * Estrategia 1: celda con prefijo "Reason:" / "Error:" incrustado → extrae el valor.
+ * Estrategia 2: celda etiquetada "Reason"/"Error" → toma la celda siguiente.
+ * Estrategia 3: celda con keywords de error de Veeam y longitud > 30 chars.
+ * Estrategia 4: celda larga (>50 chars) con múltiples palabras que no sea un nombre de tarea.
+ * Estrategia 5: párrafos fuera de tablas como fallback final.
  */
 function parseJobMessage(html: string, allCells: string[]): string | null {
-  // Etiquetas que nunca son el mensaje real
-  const skipLabel = /^(name|status|start time|end time|total size|size|read|backup size|transferred|duration|success|warning|failed|failure)$/i;
+  const knownLabel = /^(name|status|start time|end time|total size|size|read|backup size|transferred|duration|success|warning|failed|failure|job name|result)$/i;
+  // Valores cortos de Details: tiempos, tamaños, duraciones
+  const isDetailValue = /^\d{1,2}:\d{2}(:\d{2})?$|^\d+[.,]\d+\s*(GB|TB|MB|KB)|^\d+\s*min|^[\d.,]+\s*(B|KB|MB|GB|TB)$/i;
 
-  // Estrategia 1: celda etiquetada "Reason" o "Error" → siguiente celda
+  // Estrategia 1: celda que empieza con "Reason:" o "Error:" como prefijo inline
+  for (const cell of allCells) {
+    const m = cell.match(/^(?:reason|error)[s]?\s*:\s*(.+)/is);
+    if (m && m[1].trim().length > 5) return m[1].trim();
+  }
+
+  // Estrategia 2: celda etiquetada "Reason"/"Error" → siguiente celda
   const reasonIdx = allCells.findIndex((c) => /^reason[s]?$/i.test(c) || /^error[s]?$/i.test(c));
   if (reasonIdx !== -1 && reasonIdx < allCells.length - 1) {
     const val = allCells[reasonIdx + 1];
-    if (val && val.length > 3 && !skipLabel.test(val)) {
+    if (val && val.length > 5 && !knownLabel.test(val) && !isDetailValue.test(val)) {
       return val;
     }
   }
 
-  // Quita contenido de tablas para buscar en el resto del email
+  // Estrategia 3: cualquier celda con keywords típicas de error/warning de Veeam
+  const keywordPattern = /\b(failed|timed out|timeout|cannot|unable|repository|access denied|permission denied|disk full|no space|connection refused|certificate|agent|threshold|post-job script|pre-job script)\b/i;
+  for (const cell of allCells) {
+    if (cell.length > 20 && keywordPattern.test(cell) && !knownLabel.test(cell) && !isDetailValue.test(cell)) {
+      return cell;
+    }
+  }
+
+  // Estrategia 4: celda larga con varias palabras que parece una descripción
+  // (excluye valores cortos de Details y etiquetas)
+  const taskNamePattern = /\(\d+ object/i; // típico de nombres de tarea de Veeam
+  for (const cell of allCells) {
+    if (
+      cell.length > 50 &&
+      cell.split(' ').length > 5 &&
+      !knownLabel.test(cell) &&
+      !isDetailValue.test(cell) &&
+      !taskNamePattern.test(cell)
+    ) {
+      return cell;
+    }
+  }
+
+  // Estrategia 5: párrafos fuera de tablas (fallback — rara vez útil en emails Veeam)
   const noTables = html.replace(/<table[\s\S]*?<\/table>/gi, '');
-  const blocks = [...noTables.matchAll(/<(?:p|div|li)[^>]*>([\s\S]*?)<\/(?:p|div|li)>/gi)]
+  const blocks = [...noTables.matchAll(/<(?:p|div|li|span)[^>]*>([\s\S]*?)<\/(?:p|div|li|span)>/gi)]
     .map((m) => cellText(m[1]))
-    .filter((t) => t.length > 15 && t.length < 2000 && !skipLabel.test(t));
+    .filter((t) => t.length > 20 && t.length < 2000 && !knownLabel.test(t) && !isDetailValue.test(t));
 
-  if (blocks.length === 0) return null;
-
-  // Estrategia 2: preferir bloques con keywords de Veeam (aplica a WARNING y FAILURE)
-  const keywordPattern = /\b(failed|error|timeout|timed out|cannot|unable|repository|access denied|permission|disk|space|connection|certificate|agent|warning|script|threshold)\b/i;
-  const withKeyword = blocks.find((b) => keywordPattern.test(b));
-  if (withKeyword) return withKeyword;
-
-  // Estrategia 3: tomar el primer párrafo significativo (cubre SUCCESS con mensajes cortos)
-  const meaningful = blocks.find((b) => b.length > 20);
-  return meaningful ?? null;
+  return blocks[0] ?? null;
 }
 
 export async function fetchBackupEmails(since?: Date): Promise<ParsedEmail[]> {
@@ -253,4 +284,54 @@ export async function fetchBackupEmails(since?: Date): Promise<ParsedEmail[]> {
   }
 
   return results;
+}
+
+/**
+ * Re-parsea el jobMessage de emails ya importados (por messageUid).
+ * Devuelve un mapa uid → jobMessage para los que se encontró contenido.
+ */
+export async function reparseJobMessages(
+  uids: string[],
+): Promise<Map<string, string>> {
+  if (uids.length === 0) return new Map();
+
+  const email = process.env.GMAIL_EMAIL;
+  const password = process.env.GMAIL_APP_PASSWORD;
+  if (!email || !password) return new Map();
+
+  const result = new Map<string, string>();
+  const client = new ImapFlow({
+    host: 'imap.gmail.com',
+    port: 993,
+    secure: true,
+    auth: { user: email, pass: password },
+    logger: false,
+  });
+
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const numericUids = uids.map(Number).filter(Boolean);
+      for await (const msg of client.fetch(numericUids, { source: true }, { uid: true })) {
+        if (!msg.source) continue;
+        try {
+          const mail = await simpleParser(msg.source);
+          const html = (mail.html || mail.textAsHtml || '').toString();
+          const detail = parseVeeamDetails(html);
+          if (detail?.jobMessage) {
+            result.set(String(msg.uid), detail.jobMessage);
+          }
+        } catch {
+          // ignorar errores de parseo individuales
+        }
+      }
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout();
+  }
+
+  return result;
 }

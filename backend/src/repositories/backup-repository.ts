@@ -67,6 +67,18 @@ export const BackupRepository = {
     return prisma.backupJob.create({ data });
   },
 
+  async updateJobMessage(id: string, jobMessage: string) {
+    return prisma.backupJob.update({ where: { id }, data: { jobMessage } });
+  },
+
+  /** Jobs importados que tienen messageUid pero jobMessage aún vacío */
+  async findWithNullJobMessage(): Promise<{ id: string; messageUid: string }[]> {
+    return prisma.backupJob.findMany({
+      where: { jobMessage: null, messageUid: { not: null } },
+      select: { id: true, messageUid: true },
+    }) as Promise<{ id: string; messageUid: string }[]>;
+  },
+
   async findMostRecentJobDate(): Promise<Date | null> {
     const job = await prisma.backupJob.findFirst({
       orderBy: { createdAt: 'desc' },
