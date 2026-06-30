@@ -41,12 +41,8 @@ const DOT_COLORS: Record<'SUCCESS' | 'WARNING' | 'FAILURE', string> = {
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-type ListFilter = '7d' | '30d' | 'date';
+type ListFilter = '7d' | '30d' | 'day';
 
-// Formatea una fecha como YYYY-MM-DD en zona local
-function toLocalDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 function JobMessageBlock({ job }: { job: BackupJob }) {
   if (!job.jobMessage) return null;
@@ -102,11 +98,10 @@ export function BackupCalendar({ clientId }: Props) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
-  // Filtros de la lista
+  // selectedDay: { year, month, day } del clic en el calendario → filtra la lista
+  const [selectedDay, setSelectedDay] = useState<{ year: number; month: number; day: number } | null>(null);
   const [listFilter, setListFilter] = useState<ListFilter>('7d');
-  const [selectedDate, setSelectedDate] = useState<string>(toLocalDateStr(now));
 
   const { data: calJobs = [], isLoading } = useQuery({
     queryKey: ['backups', clientId, year, month],
@@ -180,9 +175,17 @@ export function BackupCalendar({ clientId }: Props) {
       cutoff.setDate(cutoff.getDate() - 30);
       return sorted.filter((j) => new Date(j.occurredAt) >= cutoff);
     }
-    // Fecha específica
-    return sorted.filter((j) => toLocalDateStr(new Date(j.occurredAt)) === selectedDate);
-  }, [allJobs, listFilter, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Día seleccionado del calendario
+    if (listFilter === 'day' && selectedDay) {
+      return sorted.filter((j) => {
+        const d = new Date(j.occurredAt);
+        return d.getFullYear() === selectedDay.year &&
+               d.getMonth() + 1 === selectedDay.month &&
+               d.getDate() === selectedDay.day;
+      });
+    }
+    return sorted;
+  }, [allJobs, listFilter, selectedDay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prevMonth = () => {
     if (month === 1) { setYear((y) => y - 1); setMonth(12); }
@@ -191,6 +194,19 @@ export function BackupCalendar({ clientId }: Props) {
   const nextMonth = () => {
     if (month === 12) { setYear((y) => y + 1); setMonth(1); }
     else setMonth((m) => m + 1);
+  };
+
+  const handleDayClick = (day: number, dayJobs: BackupJob[]) => {
+    if (dayJobs.length === 0) return;
+    const isAlreadySelected = listFilter === 'day' && selectedDay?.day === day &&
+      selectedDay.month === month && selectedDay.year === year;
+    if (isAlreadySelected) {
+      setListFilter('7d');
+      setSelectedDay(null);
+    } else {
+      setSelectedDay({ year, month, day });
+      setListFilter('day');
+    }
   };
 
   return (
@@ -281,14 +297,16 @@ export function BackupCalendar({ clientId }: Props) {
                 const dayJobs = jobsByDay.get(day) ?? [];
                 const result = worstResult(dayJobs);
                 const isToday = day === now.getDate() && month === now.getMonth() + 1 && year === now.getFullYear();
-                const isHovered = hoveredDay === day;
+                const isSelected = listFilter === 'day' && selectedDay?.day === day &&
+                  selectedDay.month === month && selectedDay.year === year;
 
                 return (
                   <div
                     key={day}
-                    className="h-8 border-b border-r relative flex flex-col items-center justify-center gap-0.5 select-none transition-colors hover:bg-muted/30"
-                    onMouseEnter={() => dayJobs.length > 0 && setHoveredDay(day)}
-                    onMouseLeave={() => setHoveredDay(null)}
+                    className={`h-8 border-b border-r relative flex flex-col items-center justify-center gap-0.5 select-none transition-colors ${
+                      dayJobs.length > 0 ? 'cursor-pointer hover:bg-muted/40' : 'cursor-default'
+                    } ${isSelected ? 'bg-muted/60 ring-1 ring-inset ring-primary/40' : ''}`}
+                    onClick={() => handleDayClick(day, dayJobs)}
                   >
                     <span className={`text-[11px] font-medium leading-none ${
                       isToday
@@ -299,25 +317,6 @@ export function BackupCalendar({ clientId }: Props) {
                     </span>
                     {result && (
                       <span className={`inline-block h-1.5 w-1.5 rounded-full ${DOT_COLORS[result]}`} />
-                    )}
-
-                    {/* Tooltip: solo nombres de tareas */}
-                    {isHovered && dayJobs.length > 0 && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 w-52 rounded-md border bg-popover shadow-lg px-2.5 py-2 text-xs pointer-events-none">
-                        <p className="font-semibold mb-1.5 text-foreground">
-                          {day} de {MONTHS[month - 1]}
-                        </p>
-                        <div className="space-y-1">
-                          {dayJobs.map((j) => (
-                            <div key={j.id} className="flex items-center gap-1.5">
-                              <span className={`shrink-0 px-1 rounded text-[9px] font-semibold ${RESULT_STYLES[j.result]}`}>
-                                {RESULT_LABEL[j.result]}
-                              </span>
-                              <span className="truncate text-muted-foreground">{j.taskName}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
                     )}
                   </div>
                 );
@@ -342,28 +341,31 @@ export function BackupCalendar({ clientId }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">Historial</span>
           <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-0.5">
-            {(['7d', '30d', 'date'] as const).map((f) => (
+            {(['7d', '30d'] as const).map((f) => (
               <button
                 key={f}
                 type="button"
-                onClick={() => setListFilter(f)}
+                onClick={() => { setListFilter(f); setSelectedDay(null); }}
                 className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
                   listFilter === f
                     ? 'bg-background shadow text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {f === '7d' ? 'Últimos 7 días' : f === '30d' ? 'Últimos 30 días' : 'Fecha'}
+                {f === '7d' ? 'Últimos 7 días' : 'Últimos 30 días'}
               </button>
             ))}
           </div>
-          {listFilter === 'date' && (
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="h-7 rounded-md border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+          {listFilter === 'day' && selectedDay && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/60 px-2.5 py-0.5 text-xs font-medium text-foreground">
+              {selectedDay.day} de {MONTHS[selectedDay.month - 1]} {selectedDay.year}
+              <button
+                type="button"
+                onClick={() => { setListFilter('7d'); setSelectedDay(null); }}
+                className="text-muted-foreground hover:text-foreground leading-none"
+                aria-label="Limpiar filtro de fecha"
+              >×</button>
+            </span>
           )}
         </div>
 
@@ -374,8 +376,8 @@ export function BackupCalendar({ clientId }: Props) {
           </div>
         ) : filteredJobs.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">
-            {listFilter === 'date'
-              ? `Sin registros para el ${selectedDate}.`
+            {listFilter === 'day' && selectedDay
+              ? `Sin registros para el ${selectedDay.day} de ${MONTHS[selectedDay.month - 1]}.`
               : `Sin registros en los últimos ${listFilter === '7d' ? '7' : '30'} días.`}
           </p>
         ) : (
