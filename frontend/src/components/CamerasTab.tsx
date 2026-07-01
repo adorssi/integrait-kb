@@ -296,6 +296,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
   // Camera form state
   const [camDialog, setCamDialog] = useState<{ open: boolean; edit?: Camera }>({ open: false });
   const [deleteCam, setDeleteCam] = useState<Camera | null>(null);
+  const [camSaveError, setCamSaveError] = useState<string | null>(null);
 
   const { data: nvrs = [], isLoading: loadingNvrs } = useQuery({
     queryKey: ['nvrs', clientId],
@@ -335,7 +336,18 @@ export function CamerasTab({ clientId, clientName }: Props) {
   // Camera mutations
   const camForm = useForm<CameraFormValues>({ resolver: zodResolver(cameraSchema) });
   const createCam = useMutation({ mutationFn: (d: CameraForm) => camerasService.create(clientId, d), onSuccess: () => { invalidate(); setCamDialog({ open: false }); camForm.reset(); } });
-  const updateCam = useMutation({ mutationFn: (d: CameraForm) => camerasService.update(clientId, camDialog.edit!.id, d), onSuccess: () => { invalidate(); setCamDialog({ open: false }); camForm.reset(); } });
+  const updateCam = useMutation({
+    mutationFn: (d: CameraForm) => camerasService.update(clientId, camDialog.edit!.id, d),
+    onSuccess: () => { invalidate(); setCamDialog({ open: false }); camForm.reset(); setCamSaveError(null); },
+    onError: (err: unknown) => {
+      const data = (err as { response?: { data?: { error?: string; details?: { field: string; message: string }[] } } })?.response?.data;
+      if (data?.details?.length) {
+        setCamSaveError(data.details.map(d => `${d.field}: ${d.message}`).join(' · '));
+      } else {
+        setCamSaveError(data?.error ?? 'Error al guardar la cámara');
+      }
+    },
+  });
   const deactivateCam = useMutation({ mutationFn: (id: string) => camerasService.deactivate(clientId, id), onSuccess: () => { invalidate(); setDeleteCam(null); } });
 
   const importCamMutation = useMutation({
@@ -374,6 +386,7 @@ export function CamerasTab({ clientId, clientName }: Props) {
       username: d.username || undefined,
       password: d.password || undefined,
     };
+    setCamSaveError(null);
     camDialog.edit ? updateCam.mutate(body) : createCam.mutate(body);
   };
 
@@ -730,6 +743,9 @@ export function CamerasTab({ clientId, clientName }: Props) {
                 {camDialog.edit && <p className="text-xs text-muted-foreground mt-1">Dejá vacío para mantener la contraseña actual.</p>}
               </div>
             </div>
+            {camSaveError && (
+              <p className="text-xs text-destructive">{camSaveError}</p>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCamDialog({ open: false })}>Cancelar</Button>
               <Button type="submit" disabled={createCam.isPending || updateCam.isPending}>Guardar</Button>
