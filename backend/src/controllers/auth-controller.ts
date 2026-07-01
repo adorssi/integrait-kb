@@ -4,11 +4,19 @@ import bcrypt from 'bcrypt';
 import { AuthService } from '../services/auth-service';
 import { TechnicianRepository } from '../repositories/technician-repository';
 import { AppError } from '../middlewares/error-handler';
+import { safeName, strongPassword } from '../utils/validators';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(1, 'Password requerido'),
 });
+
+const updateMeSchema = z.object({
+  name: safeName.optional(),
+  currentPassword: z.string().min(1).optional(),
+  newPassword: strongPassword.optional(),
+}).refine((d) => d.name || d.newPassword, { message: 'Debés cambiar al menos un campo' });
+
 
 const totpCodeSchema = z.object({
   code: z.string().length(6, 'El código debe tener 6 dígitos').regex(/^\d+$/, 'Solo dígitos'),
@@ -50,6 +58,16 @@ export const AuthController = {
       const technicianId = req.technician!.sub;
       const technician = await AuthService.getMe(technicianId);
       res.status(200).json({ data: technician });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = updateMeSchema.parse(req.body);
+      const technician = await AuthService.updateMe(req.technician!.sub, body);
+      res.json({ data: technician });
     } catch (err) {
       next(err);
     }

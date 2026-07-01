@@ -12,6 +12,11 @@ export const authService = {
     return data.data;
   },
 
+  async updateMe(payload: { name?: string; currentPassword?: string; newPassword?: string }): Promise<AuthResponse['technician']> {
+    const { data } = await api.put<{ data: AuthResponse['technician'] }>('/auth/me', payload);
+    return data.data;
+  },
+
   async verifyPassword(password: string): Promise<boolean> {
     const { data } = await api.post<{ data: { valid: boolean } }>('/auth/verify-password', { password });
     return data.data.valid;

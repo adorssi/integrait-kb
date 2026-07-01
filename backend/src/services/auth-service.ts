@@ -191,6 +191,27 @@ export const AuthService = {
     return toPublic(technician);
   },
 
+  async updateMe(technicianId: string, data: { name?: string; currentPassword?: string; newPassword?: string }): Promise<TechnicianPublic> {
+    const technician = await TechnicianRepository.findById(technicianId);
+    if (!technician) throw new AppError(404, 'Técnico no encontrado');
+
+    const update: { name?: string; passwordHash?: string } = {};
+
+    if (data.name) update.name = data.name;
+
+    if (data.newPassword) {
+      if (!data.currentPassword) throw new AppError(400, 'Se requiere la contraseña actual');
+      const valid = await bcrypt.compare(data.currentPassword, technician.passwordHash);
+      if (!valid) throw new AppError(401, 'Contraseña actual incorrecta');
+      update.passwordHash = await bcrypt.hash(data.newPassword, 12);
+    }
+
+    if (Object.keys(update).length === 0) throw new AppError(400, 'No hay cambios para guardar');
+
+    const updated = await TechnicianRepository.update(technicianId, update);
+    return toPublic(updated);
+  },
+
   _buildAuthResponse(id: string, email: string, role: Role, pub: TechnicianPublic): IAuthResponse {
     const payload: IAuthPayload = { sub: id, email, role };
     const token = jwt.sign(payload, getJwtSecret(), { expiresIn: process.env.JWT_EXPIRES_IN ?? '8h' } as jwt.SignOptions);

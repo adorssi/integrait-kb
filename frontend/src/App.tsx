@@ -9,6 +9,7 @@ import { ClientDetailPage } from '@/pages/clients/ClientDetailPage';
 import { TechniciansPage } from '@/pages/technicians/TechniciansPage';
 import { IncidentsPage } from '@/pages/incidents/IncidentsPage';
 import { IncidentDetailPage } from '@/pages/incidents/IncidentDetailPage';
+import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 const queryClient = new QueryClient({
@@ -35,6 +36,8 @@ export function App() {
               <Route path="/incidents/:id" element={<IncidentDetailPage />} />
               <Route path="/clients" element={<ClientsPage />} />
               <Route path="/clients/:id" element={<ClientDetailPage />} />
+
+              <Route path="/profile" element={<ProfilePage />} />
 
               <Route element={<AdminRoute />}>
                 <Route path="/technicians" element={<TechniciansPage />} />

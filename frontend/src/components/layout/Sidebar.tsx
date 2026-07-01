@@ -118,9 +118,9 @@ export function Sidebar() {
           {collapsed ? (
             <button
               type="button"
-              onClick={() => setProfileOpen(true)}
+              onClick={() => navigate('/profile')}
               className="flex w-full items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="Mi cuenta"
+              title="Mi perfil"
             >
               <UserCircle className="h-4 w-4" />
             </button>
@@ -128,9 +128,9 @@ export function Sidebar() {
             technician && (
               <button
                 type="button"
-                onClick={() => setProfileOpen(true)}
+                onClick={() => navigate('/profile')}
                 className="w-full rounded-md bg-muted px-3 py-2 text-left hover:bg-accent transition-colors group"
-                title="Mi cuenta"
+                title="Mi perfil"
               >
                 <div className="flex items-center justify-between gap-1">
                   <p className="truncate text-xs font-medium">{technician.name}</p>
@@ -139,7 +139,7 @@ export function Sidebar() {
                   )}
                 </div>
                 <p className="truncate text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                  {technician.role === 'ADMIN' ? 'Administrador' : 'Técnico'} · Mi cuenta
+                  {technician.role === 'ADMIN' ? 'Administrador' : 'Técnico'} · Mi perfil
                 </p>
               </button>
             )

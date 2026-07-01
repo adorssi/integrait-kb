@@ -363,7 +363,17 @@ export function CamerasTab({ clientId, clientName }: Props) {
     nvrDialog.edit ? updateNvr.mutate(body) : createNvr.mutate(body);
   };
   const onSubmitCam = (d: CameraFormValues) => {
-    const body = { ...d, channel: d.channel === '' ? undefined : d.channel as number | undefined, nvrId: d.nvrId || undefined };
+    const body = {
+      ...d,
+      channel: d.channel === '' ? undefined : d.channel as number | undefined,
+      nvrId: d.nvrId || undefined,
+      ip: d.ip || undefined,
+      location: d.location || undefined,
+      brand: d.brand || undefined,
+      model: d.model || undefined,
+      username: d.username || undefined,
+      password: d.password || undefined,
+    };
     camDialog.edit ? updateCam.mutate(body) : createCam.mutate(body);
   };
 

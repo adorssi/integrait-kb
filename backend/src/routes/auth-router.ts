@@ -7,6 +7,7 @@ const router = Router();
 
 router.post('/login', AuthController.login);
 router.get('/me', authenticate, AuthController.me);
+router.put('/me', authenticate, AuthController.updateMe);
 router.post('/verify-password', authenticate, AuthController.verifyPassword);
 
 // 2FA — setup y habilitación (requieren autenticación)
